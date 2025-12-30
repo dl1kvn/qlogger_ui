@@ -11,6 +11,7 @@ import '../services/clublog_service.dart';
 import '../services/eqsl_service.dart';
 import '../services/lotw_service.dart';
 import 'database_controller.dart';
+import 'bluetooth_controller.dart';
 
 class QsoFormController extends GetxController with WidgetsBindingObserver {
   final formKey = GlobalKey<FormState>();
@@ -960,5 +961,140 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     infoFocus.dispose();
     xtra1Focus.dispose();
     super.onClose();
+  }
+
+  // ========== CW Bluetooth Send Functions ==========
+
+  /// Check if CW buttons should be visible (CW mode + Bluetooth connected)
+  bool get showCwButtons {
+    final btController = Get.find<BluetoothController>();
+    return selectedMode.value == 'CW' && btController.isConnected.value;
+  }
+
+  /// Build the CW message string based on current form values
+  String _buildCwMessage({required bool includeCallsign}) {
+    final parts = <String>[];
+
+    // Callsign (if included)
+    if (includeCallsign && callsignController.text.isNotEmpty) {
+      parts.add(callsignController.text.trim().toUpperCase());
+    }
+
+    // Pre text
+    if (cwPreController.text.isNotEmpty) {
+      parts.add(cwPreController.text.trim());
+    }
+
+    // RST out
+    String rst = rstOutController.text;
+    if (nineIsN.value) {
+      rst = rst.replaceAll('9', 'N');
+    }
+    parts.add(rst);
+
+    // Counter (qso nr)
+    if (useCounter.value && xtra2Controller.text.isNotEmpty) {
+      String count = xtra2Controller.text;
+      if (zeroIsT.value) {
+        count = count.replaceAll('0', 'T');
+      }
+      parts.add(count);
+    }
+
+    // Activation reference
+    final activationId = selectedActivationId.value;
+    if (activationId != null) {
+      try {
+        final activation = _dbController.activationList.firstWhere(
+          (a) => a.id == activationId,
+        );
+        if (activation.reference.isNotEmpty) {
+          parts.add(activation.reference.replaceAll('-', ''));
+        }
+      } catch (_) {}
+    }
+
+    // Post text
+    if (cwPostController.text.isNotEmpty) {
+      parts.add(cwPostController.text.trim());
+    }
+
+    // BK suffix
+    if (sendBK.value) {
+      parts.add('BK');
+    }
+
+    return parts.join(' ');
+  }
+
+  /// Send callsign + RST + count via Bluetooth (SEND button)
+  void sendCallPlusRprt() {
+    if (callsignController.text.isEmpty) return;
+
+    final btController = Get.find<BluetoothController>();
+    final message = _buildCwMessage(includeCallsign: true);
+    btController.sendMorseString(message);
+    infoFocus.requestFocus();
+  }
+
+  /// Send RST + count without callsign via Bluetooth (RPT*# button)
+  void sendRprtOnly() {
+    if (callsignController.text.isEmpty) return;
+
+    final btController = Get.find<BluetoothController>();
+    final message = _buildCwMessage(includeCallsign: false);
+    btController.sendMorseString(message);
+    infoFocus.requestFocus();
+  }
+
+  /// Send my callsign via Bluetooth (MY button)
+  void sendMyCall() {
+    final myCall = selectedMyCallsign.value;
+    if (myCall == null || myCall.isEmpty) return;
+
+    final btController = Get.find<BluetoothController>();
+    btController.sendMorseString(myCall);
+    callsignFocus.requestFocus();
+  }
+
+  /// Send DX callsign or "?" via Bluetooth (CALL*? button)
+  void sendHisCall() {
+    final btController = Get.find<BluetoothController>();
+    if (callsignController.text.isNotEmpty) {
+      btController.sendMorseString(callsignController.text.trim().toUpperCase());
+    } else {
+      btController.sendMorseString('?');
+    }
+    callsignFocus.requestFocus();
+  }
+
+  // CQ double-click tracking
+  DateTime _lastCqTime = DateTime.now();
+  bool _wasLastCq = false;
+
+  /// Send CQ via Bluetooth (CQ button)
+  /// First click: "CQ <mycallsign>"
+  /// Double click within 1 second: just "<mycallsign>"
+  void sendCq() {
+    final myCall = selectedMyCallsign.value;
+    if (myCall == null || myCall.isEmpty) return;
+
+    final btController = Get.find<BluetoothController>();
+    final now = DateTime.now();
+
+    String message;
+    if (_wasLastCq && now.difference(_lastCqTime).inSeconds <= 1) {
+      // Double click - send just callsign
+      message = myCall;
+      _wasLastCq = false;
+    } else {
+      // First click - send CQ + callsign
+      message = 'CQ $myCall';
+      _wasLastCq = true;
+    }
+    _lastCqTime = now;
+
+    btController.sendMorseString(message);
+    callsignFocus.requestFocus();
   }
 }

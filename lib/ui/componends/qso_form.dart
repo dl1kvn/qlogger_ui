@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../controllers/qso_form_controller.dart';
 import '../../controllers/database_controller.dart';
+import '../../controllers/bluetooth_controller.dart';
 import '../../screens/my_callsigns_screen.dart';
 import '../theme/text_styles.dart';
 import '../theme/paddings.dart';
@@ -149,19 +150,6 @@ class QsoForm extends StatelessWidget {
             color: AppColors.surfaceLight,
             child: Row(
               children: [
-                // Bluetooth icon
-                Padding(
-                  padding: P.field,
-                  child: Obx(
-                    () => Icon(
-                      Icons.bluetooth,
-                      size: 24,
-                      color: c.bluetoothConnected.value
-                          ? AppColors.success
-                          : AppColors.textMuted,
-                    ),
-                  ),
-                ),
                 // My Callsign dropdown
                 Expanded(
                   flex: 5,
@@ -795,6 +783,97 @@ class QsoForm extends StatelessWidget {
               ),
             ],
           ),
+          SizedBox(height: P.lineSpacing),
+          Obx(() {
+            final btController = Get.find<BluetoothController>();
+            final showButtons =
+                c.selectedMode.value == 'CW' && btController.isConnected.value;
+            if (!showButtons) return const SizedBox.shrink();
+            return Column(
+              children: [
+                Row(
+                  children: [
+                    // CQ button - send CQ + mycall (double-click = just mycall)
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: c.sendCq,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(0),
+                          ),
+                        ),
+                        child: const Text('CQ'),
+                      ),
+                    ),
+                    // MY button - send my callsign
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: c.sendMyCall,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(0),
+                          ),
+                        ),
+                        child: const Text('MY'),
+                      ),
+                    ),
+                    // CALL*? button - send DX callsign or ?
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: c.sendHisCall,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueGrey,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(0),
+                          ),
+                        ),
+                        child: const Text('CALL*?'),
+                      ),
+                    ),
+                    // RPT*# button - send RST + count (without callsign)
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: c.sendRprtOnly,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.cyan,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(0),
+                          ),
+                        ),
+                        child: const Text('RPT*#'),
+                      ),
+                    ),
+                    // SEND button - send callsign + RST + count
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: c.sendCallPlusRprt,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepOrangeAccent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(0),
+                          ),
+                        ),
+                        child: const Text('SEND'),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: P.lineSpacing),
+              ],
+            );
+          }),
           SizedBox(height: P.lineSpacing),
           // Buttons row
           Row(

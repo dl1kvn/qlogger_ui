@@ -3,6 +3,7 @@ import '../data/database/database_helper.dart';
 import '../data/models/qso_model.dart';
 import '../data/models/callsign_model.dart';
 import '../data/models/activation_model.dart';
+import '../data/models/export_setting_model.dart';
 
 class DatabaseController extends GetxController {
   final DatabaseHelper _db = DatabaseHelper();
@@ -10,6 +11,7 @@ class DatabaseController extends GetxController {
   final RxList<QsoModel> qsoList = <QsoModel>[].obs;
   final RxList<CallsignModel> callsignList = <CallsignModel>[].obs;
   final RxList<ActivationModel> activationList = <ActivationModel>[].obs;
+  final RxList<ExportSettingModel> exportSettingList = <ExportSettingModel>[].obs;
   final RxBool isLoading = false.obs;
   final RxString error = ''.obs;
 
@@ -24,6 +26,7 @@ class DatabaseController extends GetxController {
       loadQsos(),
       loadCallsigns(),
       loadActivations(),
+      loadExportSettings(),
     ]);
   }
 
@@ -277,6 +280,70 @@ class DatabaseController extends GetxController {
       return true;
     } catch (e) {
       error.value = 'Failed to delete activation: $e';
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // ==================== EXPORT SETTING OPERATIONS ====================
+
+  Future<void> loadExportSettings() async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+      final settings = await _db.getAllExportSettings();
+      exportSettingList.assignAll(settings);
+    } catch (e) {
+      error.value = 'Failed to load export settings: $e';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> addExportSetting(ExportSettingModel setting) async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+      final id = await _db.insertExportSetting(setting);
+      final newSetting = setting.copyWith(id: id);
+      exportSettingList.add(newSetting);
+      return true;
+    } catch (e) {
+      error.value = 'Failed to add export setting: $e';
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> updateExportSetting(ExportSettingModel setting) async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+      await _db.updateExportSetting(setting);
+      final index = exportSettingList.indexWhere((s) => s.id == setting.id);
+      if (index != -1) {
+        exportSettingList[index] = setting;
+      }
+      return true;
+    } catch (e) {
+      error.value = 'Failed to update export setting: $e';
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> deleteExportSetting(int id) async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+      await _db.deleteExportSetting(id);
+      exportSettingList.removeWhere((s) => s.id == id);
+      return true;
+    } catch (e) {
+      error.value = 'Failed to delete export setting: $e';
       return false;
     } finally {
       isLoading.value = false;

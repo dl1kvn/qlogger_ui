@@ -3,11 +3,13 @@ import 'package:get/get.dart';
 import 'ui/theme/app_theme.dart';
 import 'screens/main_shell.dart';
 import 'controllers/database_controller.dart';
+import 'controllers/bluetooth_controller.dart';
 
 class AppBindings extends Bindings {
   @override
   void dependencies() {
     Get.put(DatabaseController(), permanent: true);
+    Get.put(BluetoothController(), permanent: true);
   }
 }
 

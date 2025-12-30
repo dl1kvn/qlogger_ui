@@ -6,13 +6,14 @@ import '../models/activation_model.dart';
 import '../models/iota_group_model.dart';
 import '../models/iota_island_model.dart';
 import '../models/pota_park_model.dart';
+import '../models/export_setting_model.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
   static const String _dbName = 'qlogger.db';
-  static const int _dbVersion = 17;
+  static const int _dbVersion = 19;
 
   static const String qsoTable = 'qsoTable';
   static const String allsignTable = 'allsignTable';
@@ -20,6 +21,7 @@ class DatabaseHelper {
   static const String iotaGroupTable = 'iotaGroupTable';
   static const String iotaIslandTable = 'iotaIslandTable';
   static const String potaParkTable = 'potaParkTable';
+  static const String exportSettingTable = 'exportSettingTable';
 
   DatabaseHelper._internal();
 
@@ -147,6 +149,17 @@ class DatabaseHelper {
         grid TEXT
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE $exportSettingTable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        format TEXT,
+        date_format TEXT,
+        band_format TEXT DEFAULT 'band',
+        fields TEXT
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -245,6 +258,20 @@ class DatabaseHelper {
     if (oldVersion < 17) {
       await db.execute("ALTER TABLE $allsignTable ADD COLUMN cwPre TEXT DEFAULT ''");
       await db.execute("ALTER TABLE $allsignTable ADD COLUMN cwPost TEXT DEFAULT ''");
+    }
+    if (oldVersion < 18) {
+      await db.execute('''
+        CREATE TABLE $exportSettingTable (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT,
+          format TEXT,
+          date_format TEXT,
+          fields TEXT
+        )
+      ''');
+    }
+    if (oldVersion < 19) {
+      await db.execute("ALTER TABLE $exportSettingTable ADD COLUMN band_format TEXT DEFAULT 'band'");
     }
   }
 
@@ -629,6 +656,51 @@ class DatabaseHelper {
     final db = await database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM $potaParkTable');
     return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  // ==================== EXPORT SETTING CRUD ====================
+
+  Future<int> insertExportSetting(ExportSettingModel setting) async {
+    final db = await database;
+    return await db.insert(exportSettingTable, setting.toMap());
+  }
+
+  Future<List<ExportSettingModel>> getAllExportSettings() async {
+    final db = await database;
+    final maps = await db.query(exportSettingTable, orderBy: 'name');
+    return maps.map((map) => ExportSettingModel.fromMap(map)).toList();
+  }
+
+  Future<ExportSettingModel?> getExportSettingById(int id) async {
+    final db = await database;
+    final maps = await db.query(
+      exportSettingTable,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (maps.isNotEmpty) {
+      return ExportSettingModel.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  Future<int> updateExportSetting(ExportSettingModel setting) async {
+    final db = await database;
+    return await db.update(
+      exportSettingTable,
+      setting.toMap(),
+      where: 'id = ?',
+      whereArgs: [setting.id],
+    );
+  }
+
+  Future<int> deleteExportSetting(int id) async {
+    final db = await database;
+    return await db.delete(
+      exportSettingTable,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   // ==================== DATABASE MANAGEMENT ====================

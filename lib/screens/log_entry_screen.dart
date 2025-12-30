@@ -3,6 +3,9 @@ import 'package:get/get.dart';
 import '../controllers/database_controller.dart';
 import '../controllers/qso_form_controller.dart';
 import '../data/models/qso_model.dart';
+import '../data/models/export_setting_model.dart';
+import '../services/export_service.dart';
+import 'export_settings_screen.dart';
 
 class LogEntryScreen extends StatefulWidget {
   const LogEntryScreen({super.key});
@@ -186,12 +189,115 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
     });
   }
 
+  void _showExportDialog() {
+    final exportSettings = _dbController.exportSettingList;
+    final qsosToExport = _filteredQsos;
+
+    if (exportSettings.isEmpty) {
+      Get.snackbar(
+        'No Export Settings',
+        'Create an export setting first',
+        snackPosition: SnackPosition.BOTTOM,
+        mainButton: TextButton(
+          onPressed: () => Get.to(() => const ExportSettingsScreen()),
+          child: const Text('Create', style: TextStyle(color: Colors.white)),
+        ),
+      );
+      return;
+    }
+
+    ExportSettingModel? selectedSetting = exportSettings.first;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Export QSOs'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${qsosToExport.length} QSOs will be exported'),
+              const SizedBox(height: 16),
+              const Text('Select export format:'),
+              const SizedBox(height: 8),
+              ...exportSettings.map((setting) {
+                return RadioListTile<ExportSettingModel>(
+                  title: Text(setting.name),
+                  subtitle: Text(
+                    '${setting.format.toUpperCase()} • ${setting.fieldsList.length} fields',
+                  ),
+                  value: setting,
+                  groupValue: selectedSetting,
+                  onChanged: (value) {
+                    setDialogState(() => selectedSetting = value);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                );
+              }),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.add),
+                title: const Text('Add new setting'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.to(() => const ExportSettingsScreen());
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: qsosToExport.isEmpty || selectedSetting == null
+                  ? null
+                  : () async {
+                      Navigator.pop(context);
+                      try {
+                        await ExportService.exportAndShare(
+                          qsosToExport,
+                          selectedSetting!,
+                        );
+                      } catch (e) {
+                        Get.snackbar(
+                          'Export Error',
+                          e.toString(),
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Colors.red,
+                          colorText: Colors.white,
+                        );
+                      }
+                    },
+              child: const Text('Export'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Qlogger – Log'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Export',
+            onPressed: _showExportDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Export Settings',
+            onPressed: () => Get.to(() => const ExportSettingsScreen()),
+          ),
           IconButton(
             icon: const Icon(Icons.clear_all),
             tooltip: 'Clear filters',
