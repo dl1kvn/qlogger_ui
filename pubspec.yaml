@@ -46,7 +46,7 @@ dependencies:
   get_storage: ^2.1.1
   url_launcher: ^6.2.1
   share_plus: ^10.1.4
-  flutter_blue_classic: ^0.0.4
+  flutter_blue_classic: 0.0.4
   permission_handler: ^11.3.1
 
 dev_dependencies:
