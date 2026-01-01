@@ -293,10 +293,11 @@ class QsoForm extends StatelessWidget {
           ),
           SizedBox(height: P.lineSpacing),
 
-          // Service indicators row
+          // Service indicators row (hidden in contest mode)
           Obx(() {
             // Trigger rebuild when callsign changes
             c.selectedMyCallsign.value;
+            if (c.contestMode.value) return const SizedBox.shrink();
             return Container(
               color: AppColors.surfaceLight,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -378,9 +379,66 @@ class QsoForm extends StatelessWidget {
             );
           }),
           SizedBox(height: P.lineSpacing),
-          // CW Checkbox row (only visible in CW mode)
+          // CW Speed slider (only visible in CW mode, hidden in contest mode)
+          Obx(() {
+            if (c.selectedMode.value != 'CW') return const SizedBox.shrink();
+            if (c.contestMode.value) return const SizedBox.shrink();
+            final btController = Get.find<BluetoothController>();
+            // Clamp speed to valid range and update if out of bounds
+            if (btController.cwSpeed.value < 16 ||
+                btController.cwSpeed.value > 36) {
+              btController.cwSpeed.value = btController.cwSpeed.value.clamp(
+                16,
+                36,
+              );
+            }
+            return Container(
+              height: 24,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              color: AppColors.surfaceLight,
+              child: Row(
+                children: [
+                  Obx(
+                    () => Text(
+                      '${btController.cwSpeed.value}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Obx(
+                      () => SliderTheme(
+                        data: SliderTheme.of(Get.context!).copyWith(
+                          trackHeight: 4,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 10,
+                          ),
+                          overlayShape: const RoundSliderOverlayShape(
+                            overlayRadius: 12,
+                          ),
+                        ),
+                        child: Slider(
+                          value: btController.cwSpeed.value.toDouble(),
+                          min: 16,
+                          max: 36,
+                          divisions: 20,
+                          onChanged: (value) {
+                            btController.cwSpeed.value = value.round();
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          SizedBox(height: P.lineSpacing),
+          // CW Checkbox row (only visible in CW mode, hidden in contest mode)
           Obx(
-            () => c.selectedMode.value == 'CW'
+            () => c.selectedMode.value == 'CW' && !c.contestMode.value
                 ? Column(
                     children: [
                       Container(
@@ -573,20 +631,6 @@ class QsoForm extends StatelessWidget {
           // Row 2: Received Info, Xtra1, Xtra2
           Row(
             children: [
-              // Time toggle icon
-              Obx(
-                () => GestureDetector(
-                  onTap: c.toggleHideDateTime,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(
-                      Icons.access_time,
-                      size: 24,
-                      color: c.hideDateTime.value ? Colors.red : Colors.green,
-                    ),
-                  ),
-                ),
-              ),
               Expanded(
                 flex: 6,
                 child: Padding(
@@ -767,20 +811,6 @@ class QsoForm extends StatelessWidget {
                       )
                     : const SizedBox.shrink(),
               ),
-              // Satellite toggle icon
-              Obx(
-                () => GestureDetector(
-                  onTap: c.toggleShowSatellite,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(
-                      Icons.satellite_alt,
-                      size: 24,
-                      color: c.showSatellite.value ? Colors.green : Colors.grey,
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
           SizedBox(height: P.lineSpacing),
@@ -853,48 +883,57 @@ class QsoForm extends StatelessWidget {
                         child: const Text('RPT*#'),
                       ),
                     ),
-                    // SEND button - send callsign + RST + count
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: c.sendCallPlusRprt,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepOrangeAccent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(0),
-                          ),
-                        ),
-                        child: const Text('SEND'),
-                      ),
-                    ),
                   ],
                 ),
-                SizedBox(height: P.lineSpacing),
               ],
             );
           }),
-          SizedBox(height: P.lineSpacing),
           // Buttons row
           Row(
             children: [
+              // SEND button - only visible in CW mode
+              Obx(
+                () => c.selectedMode.value == 'CW'
+                    ? Expanded(
+                        child: ElevatedButton(
+                          onPressed: c.sendCallPlusRprt,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepOrangeAccent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(0),
+                            ),
+                          ),
+                          child: Text('SEND', style: ButtonStyles.button),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
               Expanded(
                 child: ElevatedButton(
                   onPressed: c.clearForm,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.btnClear,
                     foregroundColor: AppColors.btnClearFg,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(0),
+                    ),
                   ),
-                  child: Text('CLEAR', style: ButtonStyles.button),
+                  child: Text('CLR', style: ButtonStyles.button),
                 ),
               ),
-              const SizedBox(width: 4),
               Expanded(
                 child: ElevatedButton(
                   onPressed: c.submitQso,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.btnLog,
                     foregroundColor: AppColors.btnLogFg,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(0),
+                    ),
                   ),
                   child: Text('SAVE', style: ButtonStyles.button),
                 ),

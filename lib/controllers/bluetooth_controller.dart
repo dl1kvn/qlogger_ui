@@ -1,28 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_blue_classic/flutter_blue_classic.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import '../utils/morse.dart';
 
-class BluetoothController extends GetxController {
-  final FlutterBlueClassic flutterBlue = FlutterBlueClassic();
+// BLE UUIDs - must match Arduino code
+const String SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+const String CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
-  Rx<BluetoothAdapterState> adapterState = BluetoothAdapterState.unknown.obs;
+class BluetoothController extends GetxController {
   RxBool isScanning = false.obs;
   RxString deviceName = "Not Connected".obs;
   RxBool isConnected = false.obs;
-  RxSet<BluetoothDevice> scanResults = <BluetoothDevice>{}.obs;
+  RxList<ScanResult> scanResults = <ScanResult>[].obs;
 
-  StreamSubscription? _adapterStateSubscription;
-  StreamSubscription? _scanSubscription;
-  StreamSubscription? _scanningStateSubscription;
-  BluetoothConnection? connection;
+  BluetoothDevice? _connectedDevice;
+  BluetoothCharacteristic? _writeCharacteristic;
+  StreamSubscription<List<ScanResult>>? _scanSubscription;
+  StreamSubscription<bool>? _scanningSubscription;
+  StreamSubscription<BluetoothConnectionState>? _connectionSubscription;
 
-  // CW speed (WPM) - Default 100 wie in fastiotalogger
-  RxInt cwSpeed = 100.obs;
+  // CW speed (WPM) - Default 26 (range 16-36)
+  RxInt cwSpeed = 26.obs;
 
   @override
   void onInit() {
@@ -32,21 +33,13 @@ class BluetoothController extends GetxController {
 
   Future<void> initBluetooth() async {
     try {
-      // Get initial adapter state
-      adapterState.value = await flutterBlue.adapterStateNow;
-
-      // Listen to adapter state changes
-      _adapterStateSubscription = flutterBlue.adapterState.listen((state) {
-        adapterState.value = state;
-      });
-
       // Listen to scan results
-      _scanSubscription = flutterBlue.scanResults.listen((device) {
-        scanResults.add(device);
+      _scanSubscription = FlutterBluePlus.scanResults.listen((results) {
+        scanResults.assignAll(results);
       });
 
       // Listen to scanning state
-      _scanningStateSubscription = flutterBlue.isScanning.listen((scanning) {
+      _scanningSubscription = FlutterBluePlus.isScanning.listen((scanning) {
         isScanning.value = scanning;
       });
     } catch (e) {
@@ -75,50 +68,100 @@ class BluetoothController extends GetxController {
       }
 
       scanResults.clear();
-      flutterBlue.startScan();
+      await FlutterBluePlus.startScan(timeout: const Duration(seconds: 10));
     } catch (e) {
       print('Start scan error: $e');
     }
   }
 
   Future<bool> _requestBluetoothPermissions() async {
-    // Request all required Bluetooth permissions
     Map<Permission, PermissionStatus> statuses = await [
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
       Permission.locationWhenInUse,
     ].request();
 
-    // Check if all permissions are granted
     return statuses.values.every((status) => status.isGranted);
   }
 
   void stopScan() {
     try {
-      flutterBlue.stopScan();
+      FlutterBluePlus.stopScan();
     } catch (e) {
       print('Stop scan error: $e');
     }
   }
 
-  Future<void> connect(BluetoothDevice device) async {
+  Future<void> connect(ScanResult result) async {
     try {
-      connection = await flutterBlue.connect(device.address);
+      final device = result.device;
 
-      if (connection != null && connection!.isConnected) {
-        isConnected.value = true;
-        deviceName.value = device.name ?? "Unknown Device";
+      // Connect to device
+      await device.connect(timeout: const Duration(seconds: 10));
 
+      // Listen for disconnection
+      _connectionSubscription?.cancel();
+      _connectionSubscription = device.connectionState.listen((state) {
+        if (state == BluetoothConnectionState.disconnected) {
+          _handleDisconnection();
+        }
+      });
+
+      // Discover services
+      List<BluetoothService> services = await device.discoverServices();
+
+      // Find our service and characteristic
+      _writeCharacteristic = null;
+      for (var service in services) {
+        if (service.uuid.toString().toLowerCase() ==
+            SERVICE_UUID.toLowerCase()) {
+          for (var char in service.characteristics) {
+            if (char.uuid.toString().toLowerCase() ==
+                CHARACTERISTIC_UUID.toLowerCase()) {
+              _writeCharacteristic = char;
+              break;
+            }
+          }
+        }
+        if (_writeCharacteristic != null) break;
+      }
+
+      // If specific characteristic not found, try to find any writable one
+      if (_writeCharacteristic == null) {
+        for (var service in services) {
+          for (var char in service.characteristics) {
+            if (char.properties.write || char.properties.writeWithoutResponse) {
+              _writeCharacteristic = char;
+              break;
+            }
+          }
+          if (_writeCharacteristic != null) break;
+        }
+      }
+
+      _connectedDevice = device;
+      isConnected.value = true;
+      deviceName.value = device.platformName.isNotEmpty
+          ? device.platformName
+          : "Unknown Device";
+
+      if (_writeCharacteristic != null) {
         Get.snackbar(
           'Success',
-          'Connected to ${device.name}',
+          'Connected to ${deviceName.value}',
           colorText: Colors.white,
           backgroundColor: Colors.green,
+        );
+      } else {
+        Get.snackbar(
+          'Warning',
+          'Connected but no write characteristic found',
+          colorText: Colors.white,
+          backgroundColor: Colors.orange,
         );
       }
     } catch (e) {
       print('Connection error: $e');
-      connection?.dispose();
       Get.snackbar(
         'Error',
         'Connection failed: ${e.toString()}',
@@ -128,61 +171,51 @@ class BluetoothController extends GetxController {
     }
   }
 
+  void _handleDisconnection() {
+    _connectedDevice = null;
+    _writeCharacteristic = null;
+    isConnected.value = false;
+    deviceName.value = "Not Connected";
+  }
+
   Future<void> disconnect() async {
     try {
-      connection?.dispose();
-      connection = null;
-      isConnected.value = false;
-      deviceName.value = "Not Connected";
+      _connectionSubscription?.cancel();
+      await _connectedDevice?.disconnect();
+      _handleDisconnection();
     } catch (e) {
       print('Disconnect error: $e');
     }
   }
 
   void turnOnBluetooth() {
-    flutterBlue.turnOn();
+    FlutterBluePlus.turnOn();
   }
 
   /// Send a string as Morse code to the ESP32
-  /// Mit Chunking um ESP nicht zu überlasten
   Future<bool> sendMorseString(String data) async {
-    if (!isConnected.value || connection == null) return false;
+    if (!isConnected.value || _writeCharacteristic == null) {
+      return false;
+    }
 
     try {
-      late Morse morse = Morse(data.trim() + ' ', message: data.trim() + ' ');
-      String speed = (cwSpeed.value + 15).toString();
-      String encodedMessage = morse.encode(data);
-      data = encodedMessage + '_' + speed + '#';
+      final morse = Morse(data.trim(), message: data.trim());
+      final encoded = morse.encode(data);
+      // Convert WPM to milliseconds per dit: 1200 / WPM
+      final speed = (1200 / cwSpeed.value).round().toString();
+      data = '${encoded}_$speed#';
 
       print('Sending CW: $data');
 
-      if (data.length > 0) {
-        List<int> bytes = utf8.encode(data);
+      final bytes = utf8.encode(data);
 
-        // Chunked senden um ESP nicht zu überlasten
-        const int chunkSize = 20; // Kleine Chunks für Bluetooth
-        int offset = 0;
-
-        while (offset < bytes.length) {
-          final end = (offset + chunkSize < bytes.length)
-              ? offset + chunkSize
-              : bytes.length;
-
-          connection?.output.add(
-            Uint8List.fromList(bytes.sublist(offset, end)),
-          );
-          await connection?.output.allSent;
-          offset = end;
-
-          // Kleine Pause damit ESP verarbeiten kann
-          if (offset < bytes.length) {
-            await Future.delayed(const Duration(milliseconds: 10));
-          }
-        }
-
-        return true;
+      if (_writeCharacteristic!.properties.write) {
+        await _writeCharacteristic!.write(bytes, withoutResponse: false);
+      } else {
+        await _writeCharacteristic!.write(bytes, withoutResponse: true);
       }
-      return false;
+
+      return true;
     } catch (e) {
       print('Send error: $e');
       return false;
@@ -190,15 +223,20 @@ class BluetoothController extends GetxController {
   }
 
   /// Send raw string without Morse encoding
-  bool sendRawString(String data) {
-    if (!isConnected.value || connection == null) {
+  Future<bool> sendRawString(String data) async {
+    if (!isConnected.value || _writeCharacteristic == null) {
       return false;
     }
 
     try {
       List<int> bytes = utf8.encode(data);
-      connection?.output.add(Uint8List.fromList(bytes));
-      connection?.output.allSent;
+
+      if (_writeCharacteristic!.properties.write) {
+        await _writeCharacteristic!.write(bytes, withoutResponse: false);
+      } else {
+        await _writeCharacteristic!.write(bytes, withoutResponse: true);
+      }
+
       return true;
     } catch (e) {
       print('Send raw error: $e');
@@ -208,10 +246,10 @@ class BluetoothController extends GetxController {
 
   @override
   void onClose() {
-    _adapterStateSubscription?.cancel();
     _scanSubscription?.cancel();
-    _scanningStateSubscription?.cancel();
-    connection?.dispose();
+    _scanningSubscription?.cancel();
+    _connectionSubscription?.cancel();
+    _connectedDevice?.disconnect();
     super.onClose();
   }
 }

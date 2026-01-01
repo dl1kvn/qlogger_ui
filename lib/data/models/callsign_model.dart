@@ -30,6 +30,7 @@ class CallsignModel {
   int showSatellite;
   String cwPre;
   String cwPost;
+  int contestMode;
 
   static const List<String> allModes = ['CW', 'SSB', 'FM', 'FT8', 'FT4', 'AM', 'RTTY', 'PSK', 'DIGI'];
   static const List<String> allBands = ['1.8', '3.5', '5', '7', '10', '14', '18', '21', '24', '28', '50', '144', '440'];
@@ -74,6 +75,7 @@ class CallsignModel {
     this.showSatellite = 0,
     this.cwPre = '',
     this.cwPost = '',
+    this.contestMode = 0,
   });
 
   List<String> get modesList => modes.isEmpty ? [] : modes.split(',');
@@ -115,6 +117,7 @@ class CallsignModel {
       'showSatellite': showSatellite,
       'cwPre': cwPre,
       'cwPost': cwPost,
+      'contestMode': contestMode,
     };
   }
 
@@ -151,6 +154,7 @@ class CallsignModel {
       showSatellite: _parseIntOrZero(map['showSatellite']),
       cwPre: map['cwPre'] as String? ?? '',
       cwPost: map['cwPost'] as String? ?? '',
+      contestMode: _parseIntOrZero(map['contestMode']),
     );
   }
 
@@ -186,6 +190,7 @@ class CallsignModel {
     int? showSatellite,
     String? cwPre,
     String? cwPost,
+    int? contestMode,
   }) {
     return CallsignModel(
       id: id ?? this.id,
@@ -219,6 +224,7 @@ class CallsignModel {
       showSatellite: showSatellite ?? this.showSatellite,
       cwPre: cwPre ?? this.cwPre,
       cwPost: cwPost ?? this.cwPost,
+      contestMode: contestMode ?? this.contestMode,
     );
   }
 }

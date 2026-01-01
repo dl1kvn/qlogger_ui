@@ -13,7 +13,7 @@ class DatabaseHelper {
   static Database? _database;
 
   static const String _dbName = 'qlogger.db';
-  static const int _dbVersion = 19;
+  static const int _dbVersion = 21;
 
   static const String qsoTable = 'qsoTable';
   static const String allsignTable = 'allsignTable';
@@ -65,7 +65,10 @@ class DatabaseHelper {
         distance TEXT,
         clublog_eqsl_call TEXT,
         clublogstatus TEXT,
-        activation_id INTEGER
+        activation_id INTEGER,
+        lotw_failed INTEGER DEFAULT 0,
+        eqsl_failed INTEGER DEFAULT 0,
+        clublog_failed INTEGER DEFAULT 0
       )
     ''');
 
@@ -101,7 +104,8 @@ class DatabaseHelper {
         hideDateTime INTEGER DEFAULT 0,
         showSatellite INTEGER DEFAULT 0,
         cwPre TEXT DEFAULT '',
-        cwPost TEXT DEFAULT ''
+        cwPost TEXT DEFAULT '',
+        contestMode INTEGER DEFAULT 0
       )
     ''');
 
@@ -272,6 +276,14 @@ class DatabaseHelper {
     }
     if (oldVersion < 19) {
       await db.execute("ALTER TABLE $exportSettingTable ADD COLUMN band_format TEXT DEFAULT 'band'");
+    }
+    if (oldVersion < 20) {
+      await db.execute("ALTER TABLE $qsoTable ADD COLUMN lotw_failed INTEGER DEFAULT 0");
+      await db.execute("ALTER TABLE $qsoTable ADD COLUMN eqsl_failed INTEGER DEFAULT 0");
+      await db.execute("ALTER TABLE $qsoTable ADD COLUMN clublog_failed INTEGER DEFAULT 0");
+    }
+    if (oldVersion < 21) {
+      await db.execute("ALTER TABLE $allsignTable ADD COLUMN contestMode INTEGER DEFAULT 0");
     }
   }
 

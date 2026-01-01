@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_blue_classic/flutter_blue_classic.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../controllers/bluetooth_controller.dart';
 
 class BluetoothDialog extends StatelessWidget {
@@ -20,18 +20,18 @@ class BluetoothDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header with Bluetooth State
+            // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Obx(() => Text(
-                      'Bluetooth (${bluetoothController.adapterState.value.name})',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
-                    )),
+                const Text(
+                  'Bluetooth BLE',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () => Get.back(),
@@ -63,46 +63,41 @@ class BluetoothDialog extends StatelessWidget {
                   )
                 : const SizedBox()),
 
-            // Bluetooth Enable Button
-            Obx(() => bluetoothController.adapterState.value ==
-                    BluetoothAdapterState.off
-                ? ListTile(
-                    title: const Text("Enable Bluetooth"),
-                    leading: const Icon(Icons.bluetooth_disabled),
-                    onTap: () => bluetoothController.turnOnBluetooth(),
-                  )
-                : const SizedBox()),
-
             const Divider(),
 
             // Device List
             SizedBox(
               height: 300,
               child: Obx(() {
-                final devices = bluetoothController.scanResults.toList();
+                final results = bluetoothController.scanResults.toList();
 
-                if (devices.isEmpty) {
+                if (results.isEmpty) {
                   return Center(
                     child: bluetoothController.isScanning.value
                         ? const CircularProgressIndicator()
-                        : const Text('No devices found'),
+                        : const Text('No devices found\nTap Scan to search'),
                   );
                 }
 
                 return ListView.builder(
-                  itemCount: devices.length,
+                  itemCount: results.length,
                   itemBuilder: (context, index) {
-                    BluetoothDevice device = devices[index];
+                    ScanResult result = results[index];
+                    final device = result.device;
+                    final name = device.platformName.isNotEmpty
+                        ? device.platformName
+                        : 'Unknown';
+
                     return ListTile(
                       title: Text(
-                        "${device.name ?? 'Unknown'} (${device.address})",
+                        name,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      subtitle: Text(
-                          "Bond: ${device.bondState.name}, Type: ${device.type.name}"),
-                      trailing: Text("${device.rssi} dBm"),
+                      subtitle: Text(device.remoteId.str),
+                      trailing: Text("${result.rssi} dBm"),
                       onTap: () async {
-                        await bluetoothController.connect(device);
+                        bluetoothController.stopScan();
+                        await bluetoothController.connect(result);
                         Get.back();
                       },
                     );

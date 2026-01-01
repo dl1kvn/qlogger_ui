@@ -61,6 +61,23 @@ class DatabaseController extends GetxController {
     }
   }
 
+  /// Add QSO and return the saved model with ID
+  Future<QsoModel?> addQsoAndReturn(QsoModel qso) async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+      final id = await _db.insertQso(qso);
+      final newQso = qso.copyWith(id: id);
+      qsoList.insert(0, newQso);
+      return newQso;
+    } catch (e) {
+      error.value = 'Failed to add QSO: $e';
+      return null;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   Future<bool> updateQso(QsoModel qso) async {
     try {
       isLoading.value = true;

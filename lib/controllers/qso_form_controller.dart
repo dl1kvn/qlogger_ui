@@ -8,6 +8,7 @@ import '../data/cqzones.dart';
 import '../data/ituzones.dart';
 import '../data/models/qso_model.dart';
 import '../services/clublog_service.dart';
+import '../services/connectivity_service.dart';
 import '../services/eqsl_service.dart';
 import '../services/lotw_service.dart';
 import 'database_controller.dart';
@@ -273,6 +274,35 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     } catch (_) {}
   }
 
+  /// Contest mode - hides service indicators and CW options for faster logging
+  final contestMode = false.obs;
+
+  void _loadContestMode() {
+    final callsign = selectedMyCallsign.value;
+    if (callsign == null) {
+      contestMode.value = false;
+      return;
+    }
+    try {
+      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      contestMode.value = cs.contestMode == 1;
+    } catch (_) {
+      contestMode.value = false;
+    }
+  }
+
+  Future<void> toggleContestMode() async {
+    final callsign = selectedMyCallsign.value;
+    if (callsign == null) return;
+    try {
+      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final newValue = cs.contestMode == 1 ? 0 : 1;
+      final updated = cs.copyWith(contestMode: newValue);
+      await _dbController.updateCallsign(updated);
+      contestMode.value = newValue == 1;
+    } catch (_) {}
+  }
+
   void _loadCwPrePost() {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) {
@@ -367,7 +397,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
 
   void _updateUtcTime() {
     final now = DateTime.now().toUtc();
-    currentUtcTime.value = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')} UTC';
+    currentUtcTime.value = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} UTC';
   }
 
   void _loadSavedLocator() {
@@ -398,6 +428,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       _loadCheckboxesFromCallsign();
       _loadHideDateTime();
       _loadShowSatellite();
+      _loadContestMode();
       _loadCwPrePost();
     } else {
       selectedMyCallsign.value = null;
@@ -498,6 +529,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       _loadCheckboxesFromCallsign();
       _loadHideDateTime();
       _loadShowSatellite();
+      _loadContestMode();
       _loadCwPrePost();
       _checkWorkedBefore();
     }
@@ -505,6 +537,19 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
 
   Future<void> submitQso() async {
     if (formKey.currentState?.validate() ?? false) {
+      // Determine which external uploads are needed
+      final needsLotw = useLotw && hasLotwKey;
+      final needsClublog = useClublog && hasClublogCredentials;
+      final needsEqsl = useEqsl && hasEqslCredentials;
+      final needsExternalUpload = needsLotw || needsClublog || needsEqsl;
+
+      // Check internet connectivity only if external uploads are needed
+      bool hasInternet = true;
+      if (needsExternalUpload) {
+        hasInternet = await ConnectivityService.hasInternetConnection();
+      }
+
+      // Create QSO with failed flags set if no internet
       final qso = QsoModel(
         callsign: callsignController.text.toUpperCase(),
         received: receivedInfoController.text,
@@ -524,29 +569,33 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
         clublogEqslCall: selectedMyCallsign.value ?? '',
         clublogstatus: '0',
         activationId: selectedActivationId.value,
+        lotwFailed: (!hasInternet && needsLotw) ? 1 : 0,
+        eqslFailed: (!hasInternet && needsEqsl) ? 1 : 0,
+        clublogFailed: (!hasInternet && needsClublog) ? 1 : 0,
       );
 
-      await _dbController.addQso(qso);
+      // Save to local database and get the ID
+      final savedQso = await _dbController.addQsoAndReturn(qso);
 
-      // Upload to LoTW if enabled and configured
-      if (useLotw && hasLotwKey) {
-        await _uploadToLotw(qso);
-      }
-
-      // Upload to ClubLog if enabled and configured
-      if (useClublog && hasClublogCredentials) {
-        await _uploadToClublog(qso);
-      }
-
-      // Upload to eQSL if enabled and configured
-      if (useEqsl && hasEqslCredentials) {
-        await _uploadToEqsl(qso);
-      }
-
+      // Clear form immediately for fast UX
       clearForm();
+
       // Update counter after QSO is saved
       if (useCounter.value) {
-        await _updateNextCounter();
+        _updateNextCounter();
+      }
+
+      // Fire-and-forget async uploads (only if internet available)
+      if (hasInternet && savedQso != null) {
+        if (needsLotw) {
+          _uploadToLotwAsync(savedQso);
+        }
+        if (needsClublog) {
+          _uploadToClublogAsync(savedQso);
+        }
+        if (needsEqsl) {
+          _uploadToEqslAsync(savedQso);
+        }
       }
     }
   }
@@ -565,9 +614,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _uploadToLotw(QsoModel qso) async {
+  /// Async LoTW upload - runs in background, updates failed flag on error
+  void _uploadToLotwAsync(QsoModel qso) async {
     try {
-      // Use the selected callsign from dropdown and its LoTW settings
       final myCall = selectedMyCallsign.value;
       if (myCall == null || myCall.isEmpty) return;
 
@@ -589,7 +638,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
         p12Password: cs.lotwkey,
         lotwLogin: cs.lotwlogin,
         lotwPassword: cs.lotwpw,
-        dxcc: '230', // Default DXCC - can be made configurable
+        dxcc: '230',
         itu: cs.itu.isNotEmpty ? cs.itu : '28',
         cqzone: cs.cqzone.isNotEmpty ? cs.cqzone : '14',
         gridsquare: qso.gridsquare,
@@ -600,6 +649,11 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       );
       _triggerFlash(lotwFlash);
     } catch (e) {
+      // Update failed flag in database
+      if (qso.id != null) {
+        final updatedQso = qso.copyWith(lotwFailed: 1);
+        await _dbController.updateQso(updatedQso);
+      }
       Get.snackbar(
         'LoTW Error',
         e.toString(),
@@ -611,7 +665,8 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _uploadToClublog(QsoModel qso) async {
+  /// Async ClubLog upload - runs in background, updates failed flag on error
+  void _uploadToClublogAsync(QsoModel qso) async {
     try {
       final myCall = selectedMyCallsign.value;
       if (myCall == null || myCall.isEmpty) return;
@@ -635,6 +690,11 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       );
       _triggerFlash(clublogFlash);
     } catch (e) {
+      // Update failed flag in database
+      if (qso.id != null) {
+        final updatedQso = qso.copyWith(clublogFailed: 1);
+        await _dbController.updateQso(updatedQso);
+      }
       Get.snackbar(
         'ClubLog Error',
         e.toString(),
@@ -646,7 +706,8 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _uploadToEqsl(QsoModel qso) async {
+  /// Async eQSL upload - runs in background, updates failed flag on error
+  void _uploadToEqslAsync(QsoModel qso) async {
     try {
       final myCall = selectedMyCallsign.value;
       if (myCall == null || myCall.isEmpty) return;
@@ -674,6 +735,11 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       );
       _triggerFlash(eqslFlash);
     } catch (e) {
+      // Update failed flag in database
+      if (qso.id != null) {
+        final updatedQso = qso.copyWith(eqslFailed: 1);
+        await _dbController.updateQso(updatedQso);
+      }
       Get.snackbar(
         'eQSL Error',
         e.toString(),

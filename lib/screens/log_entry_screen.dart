@@ -605,40 +605,87 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
               );
             }),
           ),
+          // Legend
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: Colors.grey.shade300)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Activation',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Failed upload',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
           // Pagination controls
           if (_totalPages > 1)
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: Colors.grey.shade300)),
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 2),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.first_page),
+                    icon: const Icon(Icons.first_page, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 28),
                     onPressed: _currentPage > 0
                         ? () => setState(() => _currentPage = 0)
                         : null,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.chevron_left),
+                    icon: const Icon(Icons.chevron_left, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 28),
                     onPressed: _currentPage > 0
                         ? () => setState(() => _currentPage--)
                         : null,
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('${_currentPage + 1} / $_totalPages'),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      '${_currentPage + 1} / $_totalPages',
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.chevron_right),
+                    icon: const Icon(Icons.chevron_right, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 28),
                     onPressed: _currentPage < _totalPages - 1
                         ? () => setState(() => _currentPage++)
                         : null,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.last_page),
+                    icon: const Icon(Icons.last_page, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 28),
                     onPressed: _currentPage < _totalPages - 1
                         ? () => setState(() => _currentPage = _totalPages - 1)
                         : null,
@@ -672,9 +719,18 @@ class _QsoListTile extends StatelessWidget {
     return '${activation.type.toUpperCase()}: ${activation.reference}';
   }
 
+  List<String> _getFailedUploads() {
+    final failed = <String>[];
+    if (qso.lotwFailed == 1) failed.add('LoTW');
+    if (qso.eqslFailed == 1) failed.add('eQSL');
+    if (qso.clublogFailed == 1) failed.add('ClubLog');
+    return failed;
+  }
+
   @override
   Widget build(BuildContext context) {
     final activationText = _getActivationText();
+    final failedUploads = _getFailedUploads();
 
     return Dismissible(
       key: Key(qso.id.toString()),
@@ -716,12 +772,39 @@ class _QsoListTile extends StatelessWidget {
             ],
           ),
         ),
-        subtitle: activationText != null
-            ? Text(
-                activationText,
-                style: const TextStyle(
-                  color: Colors.green,
-                  fontSize: 12,
+        subtitle: (activationText != null || failedUploads.isNotEmpty)
+            ? Text.rich(
+                TextSpan(
+                  children: [
+                    if (activationText != null)
+                      TextSpan(
+                        text: activationText,
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontSize: 12,
+                        ),
+                      ),
+                    if (activationText != null && failedUploads.isNotEmpty)
+                      const TextSpan(text: '  '),
+                    if (failedUploads.isNotEmpty)
+                      const WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 14,
+                        ),
+                      ),
+                    if (failedUploads.isNotEmpty)
+                      TextSpan(
+                        text: ' ${failedUploads.join(', ')}',
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                  ],
                 ),
               )
             : null,

@@ -18,6 +18,9 @@ class QsoModel {
   String clublogEqslCall;
   String clublogstatus;
   int? activationId;
+  int lotwFailed;
+  int eqslFailed;
+  int clublogFailed;
 
   QsoModel({
     this.id,
@@ -39,6 +42,9 @@ class QsoModel {
     this.clublogEqslCall = '',
     this.clublogstatus = '',
     this.activationId,
+    this.lotwFailed = 0,
+    this.eqslFailed = 0,
+    this.clublogFailed = 0,
   });
 
   Map<String, dynamic> toMap() {
@@ -62,6 +68,9 @@ class QsoModel {
       'clublog_eqsl_call': clublogEqslCall,
       'clublogstatus': clublogstatus,
       'activation_id': activationId,
+      'lotw_failed': lotwFailed,
+      'eqsl_failed': eqslFailed,
+      'clublog_failed': clublogFailed,
     };
   }
 
@@ -86,6 +95,9 @@ class QsoModel {
       clublogEqslCall: map['clublog_eqsl_call'] as String? ?? '',
       clublogstatus: map['clublogstatus'] as String? ?? '',
       activationId: map['activation_id'] as int?,
+      lotwFailed: map['lotw_failed'] as int? ?? 0,
+      eqslFailed: map['eqsl_failed'] as int? ?? 0,
+      clublogFailed: map['clublog_failed'] as int? ?? 0,
     );
   }
 
@@ -109,6 +121,9 @@ class QsoModel {
     String? clublogEqslCall,
     String? clublogstatus,
     int? activationId,
+    int? lotwFailed,
+    int? eqslFailed,
+    int? clublogFailed,
   }) {
     return QsoModel(
       id: id ?? this.id,
@@ -130,6 +145,9 @@ class QsoModel {
       clublogEqslCall: clublogEqslCall ?? this.clublogEqslCall,
       clublogstatus: clublogstatus ?? this.clublogstatus,
       activationId: activationId ?? this.activationId,
+      lotwFailed: lotwFailed ?? this.lotwFailed,
+      eqslFailed: eqslFailed ?? this.eqslFailed,
+      clublogFailed: clublogFailed ?? this.clublogFailed,
     );
   }
 }
