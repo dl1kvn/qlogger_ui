@@ -136,6 +136,14 @@ class StartScreen extends StatelessWidget {
               onTap: c.toggleContestMode,
             ),
           ),
+          // Custom keyboard toggle icon
+          Obx(
+            () => _appBarIconButton(
+              icon: Icons.keyboard,
+              color: c.useCustomKeyboard.value ? Colors.green : Colors.grey,
+              onTap: c.toggleCustomKeyboard,
+            ),
+          ),
           Obx(
             () => Padding(
               padding: const EdgeInsets.only(left: 6, right: 12),

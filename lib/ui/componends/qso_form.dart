@@ -11,6 +11,7 @@ import '../theme/paddings.dart';
 import '../theme/input_decorations.dart';
 import '../theme/color_scheme.dart';
 import 'labeled_checkbox.dart';
+import 'custom_keyboard.dart';
 
 class QsoForm extends StatelessWidget {
   const QsoForm({super.key});
@@ -208,10 +209,13 @@ class QsoForm extends StatelessWidget {
     final c = Get.put(QsoFormController());
     final width = MediaQuery.of(context).size.width;
 
-    return Form(
-      key: c.formKey,
-      child: Column(
-        children: [
+    return Column(
+      children: [
+        Expanded(
+          child: Form(
+            key: c.formKey,
+            child: Column(
+              children: [
           // Top row: Bluetooth, My Callsign, Status
           Container(
             color: AppColors.surfaceLight,
@@ -642,6 +646,9 @@ class QsoForm extends StatelessWidget {
                       controller: c.callsignController,
                       focusNode: c.callsignFocus,
                       textCapitalization: TextCapitalization.characters,
+                      readOnly: c.useCustomKeyboard.value,
+                      showCursor: true,
+                      onTap: () => c.setActiveTextField(c.callsignController),
                       decoration: c.workedBefore.value
                           ? InputStyles.fieldFilled(
                               'Callsign',
@@ -669,15 +676,20 @@ class QsoForm extends StatelessWidget {
                 flex: 2,
                 child: Padding(
                   padding: P.fieldTight,
-                  child: TextFormField(
+                  child: Obx(() => TextFormField(
                     controller: c.rstInController,
                     focusNode: c.rstInFocus,
                     keyboardType: TextInputType.number,
+                    readOnly: c.useCustomKeyboard.value,
+                    showCursor: true,
                     decoration: InputStyles.fieldTight('IN'),
                     style: FormStyles.rstIn(width),
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onTap: () => _selectRstText(c, c.rstInController),
-                  ),
+                    onTap: () {
+                      c.setActiveTextField(c.rstInController);
+                      _selectRstText(c, c.rstInController);
+                    },
+                  )),
                 ),
               ),
               // RST OUT
@@ -685,15 +697,20 @@ class QsoForm extends StatelessWidget {
                 flex: 2,
                 child: Padding(
                   padding: P.fieldTight,
-                  child: TextFormField(
+                  child: Obx(() => TextFormField(
                     controller: c.rstOutController,
                     focusNode: c.rstOutFocus,
                     keyboardType: TextInputType.number,
+                    readOnly: c.useCustomKeyboard.value,
+                    showCursor: true,
                     decoration: InputStyles.fieldTight('OUT'),
                     style: FormStyles.rstOut(width),
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onTap: () => _selectRstText(c, c.rstOutController),
-                  ),
+                    onTap: () {
+                      c.setActiveTextField(c.rstOutController);
+                      _selectRstText(c, c.rstOutController);
+                    },
+                  )),
                 ),
               ),
             ],
@@ -706,25 +723,31 @@ class QsoForm extends StatelessWidget {
                 flex: 6,
                 child: Padding(
                   padding: P.fieldTight,
-                  child: TextFormField(
+                  child: Obx(() => TextFormField(
                     controller: c.receivedInfoController,
                     focusNode: c.infoFocus,
+                    readOnly: c.useCustomKeyboard.value,
+                    showCursor: true,
                     decoration: InputStyles.field('NR / INFO'),
+                    onTap: () => c.setActiveTextField(c.receivedInfoController),
                     onChanged: c.onInfoChanged,
                     onFieldSubmitted: (_) => c.submitQso(),
-                  ),
+                  )),
                 ),
               ),
               Expanded(
                 flex: 6,
                 child: Padding(
                   padding: P.fieldTight,
-                  child: TextFormField(
+                  child: Obx(() => TextFormField(
                     controller: c.xtra1Controller,
                     focusNode: c.xtra1Focus,
+                    readOnly: c.useCustomKeyboard.value,
+                    showCursor: true,
                     decoration: InputStyles.field('Xtra 1'),
+                    onTap: () => c.setActiveTextField(c.xtra1Controller),
                     onChanged: c.onXtra1Changed,
-                  ),
+                  )),
                 ),
               ),
             ],
@@ -945,8 +968,15 @@ class QsoForm extends StatelessWidget {
               );
             }),
           ),
-        ],
-      ),
+              ],
+            ),
+          ),
+        ),
+        // Custom keyboard at bottom
+        Obx(() => c.useCustomKeyboard.value
+            ? const CustomKeyboard()
+            : const SizedBox.shrink()),
+      ],
     );
   }
 }

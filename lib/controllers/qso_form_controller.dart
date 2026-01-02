@@ -67,6 +67,63 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   final eqslFlash = false.obs;
   final lotwFlash = false.obs;
 
+  // Custom keyboard
+  final useCustomKeyboard = false.obs;
+  final activeTextField = Rxn<TextEditingController>();
+
+  void toggleCustomKeyboard() {
+    useCustomKeyboard.value = !useCustomKeyboard.value;
+  }
+
+  void setActiveTextField(TextEditingController? controller) {
+    activeTextField.value = controller;
+  }
+
+  void insertCharacter(String char) {
+    final controller = activeTextField.value;
+    if (controller == null) return;
+
+    final text = controller.text;
+    final selection = controller.selection;
+
+    if (selection.isValid && selection.start >= 0) {
+      final newText = text.replaceRange(selection.start, selection.end, char);
+      controller.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: selection.start + char.length),
+      );
+    } else {
+      controller.text = text + char;
+      controller.selection = TextSelection.collapsed(offset: controller.text.length);
+    }
+  }
+
+  void deleteCharacter() {
+    final controller = activeTextField.value;
+    if (controller == null) return;
+
+    final text = controller.text;
+    final selection = controller.selection;
+
+    if (selection.isValid && selection.start > 0) {
+      if (selection.start == selection.end) {
+        // No selection, delete char before cursor
+        final newText = text.replaceRange(selection.start - 1, selection.start, '');
+        controller.value = TextEditingValue(
+          text: newText,
+          selection: TextSelection.collapsed(offset: selection.start - 1),
+        );
+      } else {
+        // Delete selection
+        final newText = text.replaceRange(selection.start, selection.end, '');
+        controller.value = TextEditingValue(
+          text: newText,
+          selection: TextSelection.collapsed(offset: selection.start),
+        );
+      }
+    }
+  }
+
   static const _defaultBands = ['3.5', '7', '10', '14', '21', '28'];
   final satellites = satelliteList;
 
