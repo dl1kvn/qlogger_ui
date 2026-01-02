@@ -1,0 +1,220 @@
+================================================================================
+                         QLOGGER UI - FUNKTIONSÜBERSICHT
+                    Amateurfunk-Logging-App für Android & iOS
+================================================================================
+
+1. HAUPTBILDSCHIRME
+--------------------------------------------------------------------------------
+Die App besteht aus drei Hauptbereichen:
+
+  • Start-Screen     - QSO-Eingabeformular
+  • Log-Screen       - Gespeicherte QSOs anzeigen, filtern, bearbeiten
+  • Setup-Screen     - Rufzeichen, Aktivierungen und Online-Logs konfigurieren
+
+
+2. QSO-EINGABE (Start-Screen)
+--------------------------------------------------------------------------------
+Kernfelder:
+  • Rufzeichen (mit QRZ.com-Link)
+  • RST gesendet / empfangen
+  • Datum (YYYYMMDD) mit Datumswähler
+  • Zeit (HHMM UTC) mit Zeitwähler
+  • NR/INFO (Empfangene Information / Seriennummer)
+  • Xtra 1 (Zusatzfeld)
+  • Band-Auswahl: 1.8, 3.5, 5, 7, 10, 14, 18, 21, 24, 28, 50, 144, 440 MHz
+  • Mode-Auswahl: CW, SSB, FM, FT8, FT4, AM, RTTY, PSK, DIGI
+
+Zusatzfunktionen:
+  • Mehrere Rufzeichen verwaltbar
+  • "Worked Before"-Anzeige (rot markiert bei Duplikat)
+  • Automatische Suche nach früheren QSOs
+  • Zähler/Seriennummer mit Auto-Inkrement
+  • Locator/Grid Square mit GPS-Ermittlung
+
+
+3. BLUETOOTH CW-KEYER
+--------------------------------------------------------------------------------
+Verbindung:
+  • BLE-Geräte scannen und verbinden
+  • Verbindungsstatus in der App-Leiste
+  • ESP32-basierter CW-Keyer Unterstützung
+
+CW-Sende-Buttons (nur bei CW-Mode + Bluetooth verbunden):
+  • CQ      - Sendet "CQ [Rufzeichen]"
+  • MY      - Sendet eigenes Rufzeichen
+  • CALL*?  - Sendet DX-Rufzeichen oder "?"
+  • RPT*#   - Sendet nur RST + Nummer
+  • SEND    - Sendet komplette Nachricht
+
+CW-Geschwindigkeit:
+  • Slider von 16-36 WPM
+  • Standard: 26 WPM
+  • Echtzeit-Anpassung
+
+CW-Optionen:
+  • 0 → T Ersetzung
+  • 9 → N Ersetzung
+  • K anhängen
+  • BK anhängen
+  • Pre-Text (vor RST)
+  • Post-Text (nach Nummer)
+
+
+4. ONLINE-DIENSTE
+--------------------------------------------------------------------------------
+LoTW (Logbook of The World):
+  • Login mit Email/Passwort
+  • P12-Zertifikat-Upload
+  • Automatischer QSO-Upload
+  • Fehlgeschlagene Uploads werden markiert
+
+eQSL:
+  • Login mit Username/Passwort
+  • Automatischer QSO-Upload
+  • QSL-Nachricht wird mitgesendet
+
+ClubLog:
+  • Login mit Email/Passwort
+  • Automatischer QSO-Upload
+  • API-basierte Übertragung
+
+Status-Anzeige:
+  • Grüne Indikatoren für aktive Dienste
+  • Flash-Animation bei erfolgreichem Upload
+  • Rote Markierung bei fehlgeschlagenem Upload
+
+
+5. AKTIVIERUNGEN
+--------------------------------------------------------------------------------
+Unterstützte Programme:
+  • POTA (Parks on the Air) - mit Datenbank-Import
+  • IOTA (Islands on the Air) - mit Datenbank-Import
+  • SOTA (Summits on the Air)
+  • Eigene/Custom Aktivierungen
+
+Funktionen:
+  • Aktivierung erstellen und verwalten
+  • QSOs mit Aktivierung verknüpfen
+  • Referenz-Suche in POTA/IOTA-Datenbanken
+  • Aktivierungsreferenz wird in CW-Nachricht eingefügt
+
+
+6. EXPORT
+--------------------------------------------------------------------------------
+Formate:
+  • ADIF (Amateur Data Interchange Format)
+  • CSV (Comma-Separated Values)
+  • Cabrillo (für Contest-Einreichungen)
+
+Optionen:
+  • Export-Profile erstellen und speichern
+  • Felder auswählen (Rufzeichen, Datum, Band, Mode, RST, etc.)
+  • Gefilterte QSOs exportieren
+  • Teilen über System-Sharing
+
+
+7. EINSTELLUNGEN (Pro Rufzeichen)
+--------------------------------------------------------------------------------
+Allgemein:
+  • ITU-Zone
+  • CQ-Zone
+  • Verfügbare Bänder (sortierbar)
+  • Verfügbare Modes (sortierbar)
+
+Online-Dienste:
+  • ClubLog Email/Passwort
+  • eQSL Username/Passwort
+  • LoTW Login/Passwort + Zertifikat
+
+CW-Optionen:
+  • Zähler verwenden
+  • 0→T / 9→N Ersetzung
+  • K / BK anhängen
+  • Einzelne RST-Ziffer
+
+UI-Optionen:
+  • Datum/Zeit-Zeile ausblenden
+  • Satelliten-Dropdown anzeigen
+  • Leertaste-Toggle zwischen Feldern
+
+
+8. SPEZIELLE FUNKTIONEN
+--------------------------------------------------------------------------------
+Contest-Modus:
+  • Ein/Aus über Icon in App-Leiste
+  • Blendet Service-Indikatoren aus
+  • Blendet CW-Optionen aus
+  • Für schnelles Logging optimiert
+
+Satelliten-Unterstützung:
+  • 50+ Satelliten verfügbar
+  • Dropdown-Auswahl
+  • SAT-Mode wird in Übertragung eingefügt
+
+Zonen-Auto-Fill:
+  • CQ-Zone aus Rufzeichen-Präfix
+  • ITU-Zone nach Land
+
+Worked-Before-Erkennung:
+  • Automatische Duplikat-Prüfung
+  • Rote Markierung bei bereits gearbeitet
+  • Liste früherer QSOs mit gleichem Rufzeichen
+
+
+9. LOG-VERWALTUNG (Log-Screen)
+--------------------------------------------------------------------------------
+Filter:
+  • Nach eigenem Rufzeichen
+  • Nach Mode
+  • Nach Band
+  • Nach Aktivierung
+  • Nach Rufzeichen (Suche)
+  • Nach Datum (von/bis)
+
+Funktionen:
+  • QSO bearbeiten (Klick öffnet Dialog)
+  • QSO löschen (Wischen)
+  • Seitenweise Navigation (20 QSOs pro Seite)
+  • Gesamtanzahl Anzeige
+
+Anzeige:
+  • Kompakte Liste
+  • Farbcodierung (Band blau, Mode orange)
+  • Aktivierungs-Indikator (grüner Punkt)
+  • Fehler-Indikator (roter Punkt)
+
+
+10. TECHNISCHE DETAILS
+--------------------------------------------------------------------------------
+Datenbank:
+  • SQLite lokal auf dem Gerät
+  • Alle QSOs, Rufzeichen, Aktivierungen gespeichert
+  • Export-Einstellungen persistent
+
+Konnektivität:
+  • Automatische Internet-Erkennung
+  • Offline-Logging möglich
+  • Späterer Upload bei Verbindung
+  • Fehlgeschlagene Uploads werden wiederholt
+
+Pro QSO gespeichert:
+  • DX-Rufzeichen, eigenes Rufzeichen
+  • Datum, Zeit (UTC)
+  • Band, Mode
+  • RST gesendet/empfangen
+  • Seriennummer, Info
+  • Grid Square/Locator
+  • Aktivierungs-ID
+  • Upload-Status (LoTW, eQSL, ClubLog)
+
+
+================================================================================
+                              PLATTFORMEN
+================================================================================
+
+  • Android    - Vollständig unterstützt
+  • iOS        - Unterstützt (Info.plist konfiguriert)
+
+================================================================================
+                           Version 1.0.0
+================================================================================

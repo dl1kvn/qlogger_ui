@@ -13,7 +13,7 @@ class DatabaseHelper {
   static Database? _database;
 
   static const String _dbName = 'qlogger.db';
-  static const int _dbVersion = 21;
+  static const int _dbVersion = 23;
 
   static const String qsoTable = 'qsoTable';
   static const String allsignTable = 'allsignTable';
@@ -105,7 +105,9 @@ class DatabaseHelper {
         showSatellite INTEGER DEFAULT 0,
         cwPre TEXT DEFAULT '',
         cwPost TEXT DEFAULT '',
-        contestMode INTEGER DEFAULT 0
+        contestMode INTEGER DEFAULT 0,
+        cwCustomText TEXT DEFAULT '',
+        cwButtonLayout TEXT DEFAULT 'CQ,MY,CALL,RPT,CUSTOM|SEND,CLR,SAVE|'
       )
     ''');
 
@@ -284,6 +286,12 @@ class DatabaseHelper {
     }
     if (oldVersion < 21) {
       await db.execute("ALTER TABLE $allsignTable ADD COLUMN contestMode INTEGER DEFAULT 0");
+    }
+    if (oldVersion < 22) {
+      await db.execute("ALTER TABLE $allsignTable ADD COLUMN cwCustomText TEXT DEFAULT ''");
+    }
+    if (oldVersion < 23) {
+      await db.execute("ALTER TABLE $allsignTable ADD COLUMN cwButtonLayout TEXT DEFAULT 'CQ,MY,CALL,RPT,CUSTOM|SEND,CLR,SAVE|'");
     }
   }
 

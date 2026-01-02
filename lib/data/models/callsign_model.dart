@@ -31,6 +31,11 @@ class CallsignModel {
   String cwPre;
   String cwPost;
   int contestMode;
+  String cwCustomText;
+  String cwButtonLayout;
+
+  static const String defaultButtonLayout = 'CQ,MY,CALL,RPT,CUSTOM|SEND,CLR,SAVE|';
+  static const List<String> allButtons = ['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM', 'SEND', 'CLR', 'SAVE'];
 
   static const List<String> allModes = ['CW', 'SSB', 'FM', 'FT8', 'FT4', 'AM', 'RTTY', 'PSK', 'DIGI'];
   static const List<String> allBands = ['1.8', '3.5', '5', '7', '10', '14', '18', '21', '24', '28', '50', '144', '440'];
@@ -76,6 +81,8 @@ class CallsignModel {
     this.cwPre = '',
     this.cwPost = '',
     this.contestMode = 0,
+    this.cwCustomText = '',
+    this.cwButtonLayout = defaultButtonLayout,
   });
 
   List<String> get modesList => modes.isEmpty ? [] : modes.split(',');
@@ -83,6 +90,21 @@ class CallsignModel {
 
   List<String> get bandsList => bands.isEmpty ? [] : bands.split(',');
   set bandsList(List<String> list) => bands = list.join(',');
+
+  /// Get button layout as list of rows (each row is a list of button IDs)
+  List<List<String>> get buttonLayoutRows {
+    if (cwButtonLayout.isEmpty) return [[], [], []];
+    final rows = cwButtonLayout.split('|');
+    return [
+      rows.isNotEmpty && rows[0].isNotEmpty ? rows[0].split(',') : <String>[],
+      rows.length > 1 && rows[1].isNotEmpty ? rows[1].split(',') : <String>[],
+      rows.length > 2 && rows[2].isNotEmpty ? rows[2].split(',') : <String>[],
+    ];
+  }
+
+  set buttonLayoutRows(List<List<String>> rows) {
+    cwButtonLayout = rows.map((r) => r.join(',')).join('|');
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -118,6 +140,8 @@ class CallsignModel {
       'cwPre': cwPre,
       'cwPost': cwPost,
       'contestMode': contestMode,
+      'cwCustomText': cwCustomText,
+      'cwButtonLayout': cwButtonLayout,
     };
   }
 
@@ -155,6 +179,8 @@ class CallsignModel {
       cwPre: map['cwPre'] as String? ?? '',
       cwPost: map['cwPost'] as String? ?? '',
       contestMode: _parseIntOrZero(map['contestMode']),
+      cwCustomText: map['cwCustomText'] as String? ?? '',
+      cwButtonLayout: map['cwButtonLayout'] as String? ?? defaultButtonLayout,
     );
   }
 
@@ -191,6 +217,8 @@ class CallsignModel {
     String? cwPre,
     String? cwPost,
     int? contestMode,
+    String? cwCustomText,
+    String? cwButtonLayout,
   }) {
     return CallsignModel(
       id: id ?? this.id,
@@ -225,6 +253,8 @@ class CallsignModel {
       cwPre: cwPre ?? this.cwPre,
       cwPost: cwPost ?? this.cwPost,
       contestMode: contestMode ?? this.contestMode,
+      cwCustomText: cwCustomText ?? this.cwCustomText,
+      cwButtonLayout: cwButtonLayout ?? this.cwButtonLayout,
     );
   }
 }

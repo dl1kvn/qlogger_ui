@@ -56,6 +56,73 @@ class QsoForm extends StatelessWidget {
     );
   }
 
+  Widget _buildButton(String buttonId, QsoFormController c) {
+    final buttonConfig = {
+      'CQ': {
+        'label': 'CQ',
+        'color': Colors.green,
+        'onPressed': c.sendCq,
+      },
+      'MY': {
+        'label': 'MY',
+        'color': Colors.grey,
+        'onPressed': c.sendMyCall,
+      },
+      'CALL': {
+        'label': 'CALL?',
+        'color': Colors.blueGrey,
+        'onPressed': c.sendHisCall,
+      },
+      'RPT': {
+        'label': 'RPT#',
+        'color': Colors.cyan,
+        'onPressed': c.sendRprtOnly,
+      },
+      'CUSTOM': {
+        'label': c.cwCustomText.value.length > 6
+            ? '${c.cwCustomText.value.substring(0, 6)}…'
+            : c.cwCustomText.value,
+        'color': Colors.purple,
+        'onPressed': c.sendCwCustomText,
+      },
+      'SEND': {
+        'label': 'SEND',
+        'color': Colors.deepOrangeAccent,
+        'onPressed': c.sendCallPlusRprt,
+      },
+      'CLR': {
+        'label': 'CLR',
+        'color': AppColors.btnClear,
+        'onPressed': c.clearForm,
+      },
+      'SAVE': {
+        'label': 'SAVE',
+        'color': AppColors.btnLog,
+        'onPressed': c.submitQso,
+      },
+    };
+
+    final config = buttonConfig[buttonId];
+    if (config == null) return const SizedBox.shrink();
+
+    return ElevatedButton(
+      onPressed: config['onPressed'] as VoidCallback,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: config['color'] as Color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(0),
+        ),
+      ),
+      child: Text(
+        config['label'] as String,
+        style: ButtonStyles.button,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
   Future<void> _showDatePicker(
     BuildContext context,
     QsoFormController c,
@@ -426,6 +493,10 @@ class QsoForm extends StatelessWidget {
                           divisions: 20,
                           onChanged: (value) {
                             btController.cwSpeed.value = value.round();
+                            // Send speed to Arduino if connected
+                            if (btController.isConnected.value) {
+                              btController.sendSpeedChange();
+                            }
                           },
                         ),
                       ),
@@ -814,132 +885,40 @@ class QsoForm extends StatelessWidget {
             ],
           ),
           SizedBox(height: P.lineSpacing),
+          // Dynamic button rows based on saved layout
           Obx(() {
             final btController = Get.find<BluetoothController>();
-            final showButtons =
-                c.selectedMode.value == 'CW' && btController.isConnected.value;
-            if (!showButtons) return const SizedBox.shrink();
+            final isCwMode = c.selectedMode.value == 'CW';
+            final isConnected = btController.isConnected.value;
+            final rows = c.buttonLayoutRows.value;
+
             return Column(
-              children: [
-                Row(
-                  children: [
-                    // CQ button - send CQ + mycall (double-click = just mycall)
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: c.sendCq,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(0),
-                          ),
-                        ),
-                        child: const Text('CQ'),
-                      ),
-                    ),
-                    // MY button - send my callsign
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: c.sendMyCall,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(0),
-                          ),
-                        ),
-                        child: const Text('MY'),
-                      ),
-                    ),
-                    // CALL*? button - send DX callsign or ?
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: c.sendHisCall,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueGrey,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(0),
-                          ),
-                        ),
-                        child: const Text('CALL*?'),
-                      ),
-                    ),
-                    // RPT*# button - send RST + count (without callsign)
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: c.sendRprtOnly,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.cyan,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(0),
-                          ),
-                        ),
-                        child: const Text('RPT*#'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              children: rows.map((row) {
+                // Filter out buttons that shouldn't be shown
+                final visibleButtons = row.where((buttonId) {
+                  // CUSTOM only visible if cwCustomText is set
+                  if (buttonId == 'CUSTOM' && c.cwCustomText.value.isEmpty) {
+                    return false;
+                  }
+                  // CW-specific buttons only visible in CW mode with BT connected
+                  if (['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM', 'SEND'].contains(buttonId)) {
+                    if (!isCwMode || !isConnected) return false;
+                  }
+                  return true;
+                }).toList();
+
+                if (visibleButtons.isEmpty) return const SizedBox.shrink();
+
+                return Row(
+                  children: visibleButtons.map((buttonId) {
+                    return Expanded(
+                      child: _buildButton(buttonId, c),
+                    );
+                  }).toList(),
+                );
+              }).toList(),
             );
           }),
-          // Buttons row
-          Row(
-            children: [
-              // SEND button - only visible in CW mode
-              Obx(
-                () => c.selectedMode.value == 'CW'
-                    ? Expanded(
-                        child: ElevatedButton(
-                          onPressed: c.sendCallPlusRprt,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepOrangeAccent,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(0),
-                            ),
-                          ),
-                          child: Text('SEND', style: ButtonStyles.button),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: c.clearForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.btnClear,
-                    foregroundColor: AppColors.btnClearFg,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(0),
-                    ),
-                  ),
-                  child: Text('CLR', style: ButtonStyles.button),
-                ),
-              ),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: c.submitQso,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.btnLog,
-                    foregroundColor: AppColors.btnLogFg,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(0),
-                    ),
-                  ),
-                  child: Text('SAVE', style: ButtonStyles.button),
-                ),
-              ),
-            ],
-          ),
           // Matching QSOs list - takes remaining space
           Expanded(
             child: Obx(() {

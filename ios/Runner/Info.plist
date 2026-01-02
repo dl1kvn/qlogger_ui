@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>QLogger needs your location to calculate your Maidenhead grid locator for amateur radio contacts.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>QLogger uses Bluetooth to connect to your CW keyer for sending Morse code.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>QLogger uses Bluetooth to maintain connection with your CW keyer.</string>
 </dict>
 </plist>

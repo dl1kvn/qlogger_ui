@@ -277,6 +277,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   /// Contest mode - hides service indicators and CW options for faster logging
   final contestMode = false.obs;
 
+  /// Custom CW text for user-defined button
+  final cwCustomText = ''.obs;
+
   void _loadContestMode() {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) {
@@ -338,6 +341,37 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       final updated = cs.copyWith(cwPost: value);
       await _dbController.updateCallsign(updated);
     } catch (_) {}
+  }
+
+  void _loadCwCustomText() {
+    final callsign = selectedMyCallsign.value;
+    if (callsign == null) {
+      cwCustomText.value = '';
+      return;
+    }
+    try {
+      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      cwCustomText.value = cs.cwCustomText;
+    } catch (_) {
+      cwCustomText.value = '';
+    }
+  }
+
+  /// Button layout as 3 rows of button IDs
+  final buttonLayoutRows = Rx<List<List<String>>>([[], [], []]);
+
+  void _loadButtonLayout() {
+    final callsign = selectedMyCallsign.value;
+    if (callsign == null) {
+      buttonLayoutRows.value = [['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM'], ['SEND', 'CLR', 'SAVE'], []];
+      return;
+    }
+    try {
+      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      buttonLayoutRows.value = cs.buttonLayoutRows;
+    } catch (_) {
+      buttonLayoutRows.value = [['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM'], ['SEND', 'CLR', 'SAVE'], []];
+    }
   }
 
   final callsignFocus = FocusNode();
@@ -430,6 +464,8 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       _loadShowSatellite();
       _loadContestMode();
       _loadCwPrePost();
+      _loadCwCustomText();
+      _loadButtonLayout();
     } else {
       selectedMyCallsign.value = null;
     }
@@ -531,6 +567,8 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       _loadShowSatellite();
       _loadContestMode();
       _loadCwPrePost();
+      _loadCwCustomText();
+      _loadButtonLayout();
       _checkWorkedBefore();
     }
   }
@@ -1145,6 +1183,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final myCall = selectedMyCallsign.value;
     if (myCall == null || myCall.isEmpty) return;
 
+    // Clear callsign field
+    callsignController.clear();
+
     final btController = Get.find<BluetoothController>();
     final now = DateTime.now();
 
@@ -1162,5 +1203,13 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
 
     btController.sendMorseString(message);
     callsignFocus.requestFocus();
+  }
+
+  /// Send custom CW text via Bluetooth
+  void sendCwCustomText() {
+    if (cwCustomText.value.isEmpty) return;
+
+    final btController = Get.find<BluetoothController>();
+    btController.sendMorseString(cwCustomText.value);
   }
 }

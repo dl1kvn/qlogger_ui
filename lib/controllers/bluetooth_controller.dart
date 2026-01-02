@@ -244,6 +244,34 @@ class BluetoothController extends GetxController {
     }
   }
 
+  /// Send speed change to Arduino (format: _XX#)
+  Future<bool> sendSpeedChange() async {
+    if (!isConnected.value || _writeCharacteristic == null) {
+      return false;
+    }
+
+    try {
+      // Convert WPM to milliseconds per dit: 1200 / WPM
+      final speedMs = (1200 / cwSpeed.value).round();
+      final data = '_${speedMs}#';
+
+      print('Sending speed: $data');
+
+      final bytes = utf8.encode(data);
+
+      if (_writeCharacteristic!.properties.write) {
+        await _writeCharacteristic!.write(bytes, withoutResponse: false);
+      } else {
+        await _writeCharacteristic!.write(bytes, withoutResponse: true);
+      }
+
+      return true;
+    } catch (e) {
+      print('Send speed error: $e');
+      return false;
+    }
+  }
+
   @override
   void onClose() {
     _scanSubscription?.cancel();

@@ -28,6 +28,7 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
   late final TextEditingController _lotwkeyController;
   late final TextEditingController _ituController;
   late final TextEditingController _cqzoneController;
+  late final TextEditingController _cwCustomTextController;
 
   late bool _useClublog;
   late bool _useEqsl;
@@ -44,6 +45,7 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
   late bool _toggleSecondField;
   late bool _useCqzones;
   late bool _useItuzones;
+  late List<List<String>> _buttonLayoutRows;
 
   bool get isEditing => widget.callsign != null;
 
@@ -66,6 +68,7 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
     _lotwkeyController = TextEditingController(text: c?.lotwkey ?? '');
     _ituController = TextEditingController(text: c?.itu ?? '');
     _cqzoneController = TextEditingController(text: c?.cqzone ?? '');
+    _cwCustomTextController = TextEditingController(text: c?.cwCustomText ?? '');
     _useClublog = (c?.useclublog ?? 0) == 1;
     _useEqsl = (c?.useeqsl ?? 0) == 1;
     _useLotw = (c?.uselotw ?? 0) == 1;
@@ -81,6 +84,11 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
     _toggleSecondField = (c?.toggleSecondField ?? 0) == 1;
     _useCqzones = (c?.useCqzones ?? 0) == 1;
     _useItuzones = (c?.useItuzones ?? 0) == 1;
+    _buttonLayoutRows = c?.buttonLayoutRows ?? [
+      ['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM'],
+      ['SEND', 'CLR', 'SAVE'],
+      [],
+    ];
   }
 
   @override
@@ -96,6 +104,7 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
     _lotwkeyController.dispose();
     _ituController.dispose();
     _cqzoneController.dispose();
+    _cwCustomTextController.dispose();
     super.dispose();
   }
 
@@ -130,6 +139,8 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
       toggleSecondField: _toggleSecondField ? 1 : 0,
       useCqzones: _useCqzones ? 1 : 0,
       useItuzones: _useItuzones ? 1 : 0,
+      cwCustomText: _cwCustomTextController.text.toUpperCase(),
+      cwButtonLayout: _buttonLayoutRows.map((r) => r.join(',')).join('|'),
     );
 
     bool success;
@@ -361,6 +372,20 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _cwCustomTextController,
+              decoration: const InputDecoration(
+                labelText: 'Custom CW Button Text',
+                hintText: 'e.g. TU 73 GL',
+                border: OutlineInputBorder(),
+              ),
+              textCapitalization: TextCapitalization.characters,
+            ),
+            const SizedBox(height: 24),
+            Text('CW Button Layout (drag to reorder)', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            _buildButtonLayoutEditor(),
             const SizedBox(height: 24),
             _buildSectionHeader(
               'Club Log',
@@ -554,6 +579,122 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildButtonLayoutEditor() {
+    final buttonLabels = {
+      'CQ': 'CQ',
+      'MY': 'MY',
+      'CALL': 'CALL?',
+      'RPT': 'RPT#',
+      'CUSTOM': _cwCustomTextController.text.isEmpty
+          ? 'CUSTOM'
+          : _cwCustomTextController.text.length > 6
+              ? '${_cwCustomTextController.text.substring(0, 6)}…'
+              : _cwCustomTextController.text,
+      'SEND': 'SEND',
+      'CLR': 'CLR',
+      'SAVE': 'SAVE',
+    };
+
+    final buttonColors = {
+      'CQ': Colors.green,
+      'MY': Colors.grey,
+      'CALL': Colors.blueGrey,
+      'RPT': Colors.cyan,
+      'CUSTOM': Colors.purple,
+      'SEND': Colors.deepOrangeAccent,
+      'CLR': Colors.red.shade300,
+      'SAVE': Colors.blue,
+    };
+
+    return Column(
+      children: List.generate(3, (rowIndex) {
+        return DragTarget<Map<String, dynamic>>(
+          onAcceptWithDetails: (details) {
+            final data = details.data;
+            final fromRow = data['row'] as int;
+            final buttonId = data['button'] as String;
+
+            setState(() {
+              // Remove from original position
+              _buttonLayoutRows[fromRow].remove(buttonId);
+              // Add to new row
+              _buttonLayoutRows[rowIndex].add(buttonId);
+            });
+          },
+          builder: (context, candidateData, rejectedData) {
+            final isHovering = candidateData.isNotEmpty;
+            return Container(
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isHovering ? Colors.blue.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isHovering ? Colors.blue : Colors.grey.shade300,
+                  width: isHovering ? 2 : 1,
+                ),
+              ),
+              constraints: const BoxConstraints(minHeight: 50),
+              child: Row(
+                children: [
+                  Text(
+                    'Row ${rowIndex + 1}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: _buttonLayoutRows[rowIndex].map((buttonId) {
+                        return Draggable<Map<String, dynamic>>(
+                          data: {'row': rowIndex, 'button': buttonId},
+                          feedback: Material(
+                            elevation: 4,
+                            borderRadius: BorderRadius.circular(4),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: buttonColors[buttonId] ?? Colors.grey,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                buttonLabels[buttonId] ?? buttonId,
+                                style: const TextStyle(color: Colors.white, fontSize: 12),
+                              ),
+                            ),
+                          ),
+                          childWhenDragging: Opacity(
+                            opacity: 0.3,
+                            child: Chip(
+                              label: Text(buttonLabels[buttonId] ?? buttonId, style: const TextStyle(fontSize: 11)),
+                              backgroundColor: buttonColors[buttonId]?.withOpacity(0.3),
+                              padding: EdgeInsets.zero,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                          child: Chip(
+                            label: Text(buttonLabels[buttonId] ?? buttonId, style: const TextStyle(fontSize: 11, color: Colors.white)),
+                            backgroundColor: buttonColors[buttonId],
+                            padding: EdgeInsets.zero,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      }),
     );
   }
 }
