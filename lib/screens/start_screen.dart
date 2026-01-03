@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/qso_form_controller.dart';
 import '../controllers/bluetooth_controller.dart';
+import '../controllers/theme_controller.dart';
 import '../ui/componends/qso_form.dart';
 import '../ui/theme/tokens.dart';
-import '../ui/theme/text_styles.dart';
 import '../widgets/bluetooth_dialog.dart';
 
-Widget qloggerSpeedWordmark({double fontSize = 14, Color? color}) {
+Widget qloggerSpeedWordmark({double fontSize = 24, Color? color}) {
   return Builder(
     builder: (context) {
       final c =
@@ -21,9 +21,9 @@ Widget qloggerSpeedWordmark({double fontSize = 14, Color? color}) {
         children: [
           // Ghost 1 (weiter hinten)
           Transform.translate(
-            offset: const Offset(-6, 0),
+            offset: const Offset(-4, 0),
             child: Text(
-              'qlogger',
+              'q',
               maxLines: 1,
               overflow: TextOverflow.clip,
               style: TextStyle(
@@ -36,9 +36,9 @@ Widget qloggerSpeedWordmark({double fontSize = 14, Color? color}) {
           ),
           // Ghost 2 (näher dran)
           Transform.translate(
-            offset: const Offset(-3, 0),
+            offset: const Offset(-2, 0),
             child: Text(
-              'qlogger',
+              'q',
               maxLines: 1,
               overflow: TextOverflow.clip,
               style: TextStyle(
@@ -51,7 +51,7 @@ Widget qloggerSpeedWordmark({double fontSize = 14, Color? color}) {
           ),
           // Main text
           Text(
-            'qlogger',
+            'q',
             maxLines: 1,
             overflow: TextOverflow.clip,
             style: TextStyle(
@@ -94,11 +94,12 @@ class StartScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.put(QsoFormController());
     final btController = Get.find<BluetoothController>();
+    final themeController = Get.find<ThemeController>();
 
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 36,
-        title: qloggerSpeedWordmark(fontSize: 18),
+        title: qloggerSpeedWordmark(fontSize: 14),
         actions: [
           // Bluetooth status icon
           Obx(
@@ -144,11 +145,24 @@ class StartScreen extends StatelessWidget {
               onTap: c.toggleCustomKeyboard,
             ),
           ),
+          // Theme toggle icon
+          Obx(
+            () => _appBarIconButton(
+              icon: themeController.isDarkMode.value
+                  ? Icons.light_mode
+                  : Icons.dark_mode,
+              color: Colors.grey,
+              onTap: themeController.toggleTheme,
+            ),
+          ),
           Obx(
             () => Padding(
               padding: const EdgeInsets.only(left: 6, right: 12),
               child: Center(
-                child: Text(c.currentUtcTime.value, style: AppBarStyles.title),
+                child: Text(
+                  c.currentUtcTime.value,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
             ),
           ),

@@ -8,7 +8,9 @@ import '../services/export_service.dart';
 import 'export_settings_screen.dart';
 
 class LogEntryScreen extends StatefulWidget {
-  const LogEntryScreen({super.key});
+  final int? initialActivationId;
+
+  const LogEntryScreen({super.key, this.initialActivationId});
 
   @override
   State<LogEntryScreen> createState() => _LogEntryScreenState();
@@ -68,6 +70,9 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
     if (currentCallsign != null &&
         _dbController.callsignList.any((c) => c.callsign == currentCallsign)) {
       _selectedMyCallsign = currentCallsign;
+    }
+    if (widget.initialActivationId != null) {
+      _selectedActivationId = widget.initialActivationId;
     }
     _searchController.addListener(() {
       setState(() {
@@ -466,7 +471,7 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
                               return DropdownMenuItem<int?>(
                                 value: a.id,
                                 child: Text(
-                                  '${a.type.toUpperCase()} ${a.reference}',
+                                  '${a.reference} ${a.type.toUpperCase()}',
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               );
@@ -716,7 +721,7 @@ class _QsoListTile extends StatelessWidget {
     final activation = dbController.activationList
         .firstWhereOrNull((a) => a.id == qso.activationId);
     if (activation == null) return null;
-    return '${activation.type.toUpperCase()}: ${activation.reference}';
+    return '${activation.reference} ${activation.type.toUpperCase()}';
   }
 
   List<String> _getFailedUploads() {

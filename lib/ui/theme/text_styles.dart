@@ -19,13 +19,11 @@ class FormStyles {
   static TextStyle rstIn(double width) => TextStyle(
     fontSize: width * 0.05,
     fontWeight: FontWeight.w500,
-    color: Colors.green,
   );
 
   static TextStyle rstOut(double width) => TextStyle(
     fontSize: width * 0.05,
     fontWeight: FontWeight.w500,
-    color: Colors.indigo,
   );
 
   static const TextStyle info = TextStyle(

@@ -32,7 +32,9 @@ class CallsignModel {
   String cwPost;
   int contestMode;
   String cwCustomText;
+  String cwCqText;
   String cwButtonLayout;
+  int useGermanKeyboard;
 
   static const String defaultButtonLayout = 'CQ,MY,CALL,RPT,CUSTOM|SEND,CLR,SAVE|';
   static const List<String> allButtons = ['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM', 'SEND', 'CLR', 'SAVE'];
@@ -82,7 +84,9 @@ class CallsignModel {
     this.cwPost = '',
     this.contestMode = 0,
     this.cwCustomText = '',
+    this.cwCqText = '',
     this.cwButtonLayout = defaultButtonLayout,
+    this.useGermanKeyboard = 0,
   });
 
   List<String> get modesList => modes.isEmpty ? [] : modes.split(',');
@@ -141,7 +145,9 @@ class CallsignModel {
       'cwPost': cwPost,
       'contestMode': contestMode,
       'cwCustomText': cwCustomText,
+      'cwCqText': cwCqText,
       'cwButtonLayout': cwButtonLayout,
+      'useGermanKeyboard': useGermanKeyboard,
     };
   }
 
@@ -180,7 +186,9 @@ class CallsignModel {
       cwPost: map['cwPost'] as String? ?? '',
       contestMode: _parseIntOrZero(map['contestMode']),
       cwCustomText: map['cwCustomText'] as String? ?? '',
+      cwCqText: map['cwCqText'] as String? ?? '',
       cwButtonLayout: map['cwButtonLayout'] as String? ?? defaultButtonLayout,
+      useGermanKeyboard: _parseIntOrZero(map['useGermanKeyboard']),
     );
   }
 
@@ -218,7 +226,9 @@ class CallsignModel {
     String? cwPost,
     int? contestMode,
     String? cwCustomText,
+    String? cwCqText,
     String? cwButtonLayout,
+    int? useGermanKeyboard,
   }) {
     return CallsignModel(
       id: id ?? this.id,
@@ -254,7 +264,9 @@ class CallsignModel {
       cwPost: cwPost ?? this.cwPost,
       contestMode: contestMode ?? this.contestMode,
       cwCustomText: cwCustomText ?? this.cwCustomText,
+      cwCqText: cwCqText ?? this.cwCqText,
       cwButtonLayout: cwButtonLayout ?? this.cwButtonLayout,
+      useGermanKeyboard: useGermanKeyboard ?? this.useGermanKeyboard,
     );
   }
 }

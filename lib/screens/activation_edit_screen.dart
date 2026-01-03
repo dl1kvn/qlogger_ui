@@ -63,7 +63,13 @@ class _ActivationEditScreenState extends State<ActivationEditScreen> {
               items: ActivationModel.activationTypes.map((type) {
                 return DropdownMenuItem(
                   value: type,
-                  child: Text(type.toUpperCase()),
+                  child: Row(
+                    children: [
+                      Icon(ActivationModel.getIcon(type), size: 20, color: ActivationModel.getColor(type)),
+                      const SizedBox(width: 8),
+                      Text(type.toUpperCase()),
+                    ],
+                  ),
                 );
               }).toList(),
               onChanged: (value) {

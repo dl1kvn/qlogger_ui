@@ -29,6 +29,7 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
   late final TextEditingController _ituController;
   late final TextEditingController _cqzoneController;
   late final TextEditingController _cwCustomTextController;
+  late final TextEditingController _cwCqTextController;
 
   late bool _useClublog;
   late bool _useEqsl;
@@ -45,6 +46,7 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
   late bool _toggleSecondField;
   late bool _useCqzones;
   late bool _useItuzones;
+  late bool _useGermanKeyboard;
   late List<List<String>> _buttonLayoutRows;
 
   bool get isEditing => widget.callsign != null;
@@ -69,6 +71,7 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
     _ituController = TextEditingController(text: c?.itu ?? '');
     _cqzoneController = TextEditingController(text: c?.cqzone ?? '');
     _cwCustomTextController = TextEditingController(text: c?.cwCustomText ?? '');
+    _cwCqTextController = TextEditingController(text: c?.cwCqText ?? '');
     _useClublog = (c?.useclublog ?? 0) == 1;
     _useEqsl = (c?.useeqsl ?? 0) == 1;
     _useLotw = (c?.uselotw ?? 0) == 1;
@@ -84,6 +87,7 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
     _toggleSecondField = (c?.toggleSecondField ?? 0) == 1;
     _useCqzones = (c?.useCqzones ?? 0) == 1;
     _useItuzones = (c?.useItuzones ?? 0) == 1;
+    _useGermanKeyboard = (c?.useGermanKeyboard ?? 0) == 1;
     _buttonLayoutRows = c?.buttonLayoutRows ?? [
       ['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM'],
       ['SEND', 'CLR', 'SAVE'],
@@ -105,6 +109,7 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
     _ituController.dispose();
     _cqzoneController.dispose();
     _cwCustomTextController.dispose();
+    _cwCqTextController.dispose();
     super.dispose();
   }
 
@@ -139,7 +144,9 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
       toggleSecondField: _toggleSecondField ? 1 : 0,
       useCqzones: _useCqzones ? 1 : 0,
       useItuzones: _useItuzones ? 1 : 0,
+      useGermanKeyboard: _useGermanKeyboard ? 1 : 0,
       cwCustomText: _cwCustomTextController.text.toUpperCase(),
+      cwCqText: _cwCqTextController.text.toUpperCase(),
       cwButtonLayout: _buttonLayoutRows.map((r) => r.join(',')).join('|'),
     );
 
@@ -249,6 +256,26 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _cwCustomTextController,
+              decoration: const InputDecoration(
+                labelText: 'Custom CW Button Text',
+                hintText: 'e.g. TU 73 GL',
+                border: OutlineInputBorder(),
+              ),
+              textCapitalization: TextCapitalization.characters,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _cwCqTextController,
+              decoration: const InputDecoration(
+                labelText: 'Custom CQ Button Text',
+                hintText: 'cq, test...',
+                border: OutlineInputBorder(),
+              ),
+              textCapitalization: TextCapitalization.characters,
+            ),
             const SizedBox(height: 24),
             Text('Modes (drag to reorder)', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
@@ -338,6 +365,14 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
             ),
+            CheckboxListTile(
+              title: const Text('German Keyboard Layout'),
+              subtitle: const Text('Swap Y and Z keys (QWERTZ)'),
+              value: _useGermanKeyboard,
+              onChanged: (v) => setState(() => _useGermanKeyboard = v ?? false),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+            ),
             const SizedBox(height: 24),
             Text('CW Options', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
@@ -371,16 +406,6 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
                   onSelected: (v) => setState(() => _sendBK = v),
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _cwCustomTextController,
-              decoration: const InputDecoration(
-                labelText: 'Custom CW Button Text',
-                hintText: 'e.g. TU 73 GL',
-                border: OutlineInputBorder(),
-              ),
-              textCapitalization: TextCapitalization.characters,
             ),
             const SizedBox(height: 24),
             Text('CW Button Layout (drag to reorder)', style: Theme.of(context).textTheme.titleMedium),
@@ -494,12 +519,17 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               icon: const Icon(Icons.key),
               label: const Text('Load P12 File'),
             ),
-            const SizedBox(height: 32),
-            FilledButton(
-              onPressed: _save,
-              child: Text(isEditing ? 'Save' : 'Add'),
-            ),
+            const SizedBox(height: 16),
           ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: FilledButton(
+            onPressed: _save,
+            child: Text(isEditing ? 'Save' : 'Add'),
+          ),
         ),
       ),
     );
@@ -598,12 +628,13 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
       'SAVE': 'SAVE',
     };
 
+    final customDisabled = _cwCustomTextController.text.isEmpty;
     final buttonColors = {
       'CQ': Colors.green,
       'MY': Colors.grey,
       'CALL': Colors.blueGrey,
       'RPT': Colors.cyan,
-      'CUSTOM': Colors.purple,
+      'CUSTOM': customDisabled ? Colors.grey.shade400 : Colors.purple,
       'SEND': Colors.deepOrangeAccent,
       'CLR': Colors.red.shade300,
       'SAVE': Colors.blue,

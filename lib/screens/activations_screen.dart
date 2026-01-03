@@ -4,6 +4,7 @@ import '../controllers/database_controller.dart';
 import '../data/models/activation_model.dart';
 import 'activation_edit_screen.dart';
 import 'iota_references_screen.dart';
+import 'log_entry_screen.dart';
 import 'pota_references_screen.dart';
 
 class ActivationsScreen extends StatelessWidget {
@@ -20,6 +21,7 @@ class ActivationsScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: ActivationModel.activationTypes.map((type) {
             return ListTile(
+              leading: Icon(ActivationModel.getIcon(type), color: ActivationModel.getColor(type)),
               title: Text(type.toUpperCase()),
               onTap: () {
                 Navigator.pop(ctx);
@@ -131,7 +133,7 @@ class ActivationsScreen extends StatelessWidget {
               children: [
                 FilledButton.icon(
                   onPressed: () => Get.to(() => const IotaReferencesScreen()),
-                  icon: const Icon(Icons.public),
+                  icon: const Icon(Icons.beach_access),
                   label: const Text('IOTA REF'),
                 ),
                 const SizedBox(width: 8),
@@ -158,32 +160,45 @@ class ActivationsScreen extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final activation = dbController.activationList[index];
                   return ListTile(
-                    title: Text('${activation.type.toUpperCase()} ${activation.reference}'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Delete Activation'),
-                            content: Text('Delete ${activation.type.toUpperCase()} activation?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx),
-                                child: const Text('Cancel'),
+                    leading: Icon(ActivationModel.getIcon(activation.type), color: ActivationModel.getColor(activation.type)),
+                    title: Text(activation.reference),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.list_alt),
+                          tooltip: 'View Logs',
+                          onPressed: () {
+                            Get.to(() => LogEntryScreen(initialActivationId: activation.id));
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Delete Activation'),
+                                content: Text('Delete ${activation.type.toUpperCase()} activation?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                    onPressed: () {
+                                      dbController.deleteActivation(activation.id!);
+                                      Navigator.pop(ctx);
+                                    },
+                                    child: const Text('Delete'),
+                                  ),
+                                ],
                               ),
-                              FilledButton(
-                                style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                                onPressed: () {
-                                  dbController.deleteActivation(activation.id!);
-                                  Navigator.pop(ctx);
-                                },
-                                child: const Text('Delete'),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+                            );
+                          },
+                        ),
+                      ],
                     ),
                     onTap: () {
                       Get.to(() => ActivationEditScreen(activation: activation));

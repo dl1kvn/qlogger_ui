@@ -96,6 +96,11 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       controller.text = text + char;
       controller.selection = TextSelection.collapsed(offset: controller.text.length);
     }
+
+    // Check for worked before when typing in callsign field
+    if (controller == callsignController) {
+      _checkWorkedBefore();
+    }
   }
 
   void deleteCharacter() {
@@ -337,6 +342,12 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   /// Custom CW text for user-defined button
   final cwCustomText = ''.obs;
 
+  /// Custom CQ text for CQ button
+  final cwCqText = ''.obs;
+
+  /// Use German keyboard layout (Y/Z swapped)
+  final useGermanKeyboard = false.obs;
+
   void _loadContestMode() {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) {
@@ -414,6 +425,34 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     }
   }
 
+  void _loadCwCqText() {
+    final callsign = selectedMyCallsign.value;
+    if (callsign == null) {
+      cwCqText.value = '';
+      return;
+    }
+    try {
+      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      cwCqText.value = cs.cwCqText;
+    } catch (_) {
+      cwCqText.value = '';
+    }
+  }
+
+  void _loadGermanKeyboard() {
+    final callsign = selectedMyCallsign.value;
+    if (callsign == null) {
+      useGermanKeyboard.value = false;
+      return;
+    }
+    try {
+      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      useGermanKeyboard.value = cs.useGermanKeyboard == 1;
+    } catch (_) {
+      useGermanKeyboard.value = false;
+    }
+  }
+
   /// Button layout as 3 rows of button IDs
   final buttonLayoutRows = Rx<List<List<String>>>([[], [], []]);
 
@@ -488,7 +527,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
 
   void _updateUtcTime() {
     final now = DateTime.now().toUtc();
-    currentUtcTime.value = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} UTC';
+    currentUtcTime.value = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}UTC';
   }
 
   void _loadSavedLocator() {
@@ -522,6 +561,8 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       _loadContestMode();
       _loadCwPrePost();
       _loadCwCustomText();
+      _loadCwCqText();
+      _loadGermanKeyboard();
       _loadButtonLayout();
     } else {
       selectedMyCallsign.value = null;
@@ -625,6 +666,8 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       _loadContestMode();
       _loadCwPrePost();
       _loadCwCustomText();
+      _loadCwCqText();
+      _loadGermanKeyboard();
       _loadButtonLayout();
       _checkWorkedBefore();
     }
@@ -1234,7 +1277,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   bool _wasLastCq = false;
 
   /// Send CQ via Bluetooth (CQ button)
-  /// First click: "CQ <mycallsign>"
+  /// First click: "<cwCqText> <mycallsign>" or "CQ <mycallsign>" if cwCqText is empty
   /// Double click within 1 second: just "<mycallsign>"
   void sendCq() {
     final myCall = selectedMyCallsign.value;
@@ -1252,8 +1295,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       message = myCall;
       _wasLastCq = false;
     } else {
-      // First click - send CQ + callsign
-      message = 'CQ $myCall';
+      // First click - send CQ text + callsign
+      final cqText = cwCqText.value.isNotEmpty ? cwCqText.value : 'CQ';
+      message = '$cqText $myCall';
       _wasLastCq = true;
     }
     _lastCqTime = now;
