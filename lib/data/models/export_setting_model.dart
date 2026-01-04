@@ -7,6 +7,7 @@ class ExportSettingModel {
   String dateFormat; // 'YYYY-MM-DD' or 'YYYYMMDD'
   String bandFormat; // 'band' (20M) or 'freq' (14000)
   String fields; // JSON array of selected field names in order
+  String fieldAliases; // JSON map of field -> custom ADIF name
 
   static const List<String> allFields = [
     'callsign',
@@ -40,6 +41,7 @@ class ExportSettingModel {
     this.dateFormat = 'YYYYMMDD',
     this.bandFormat = 'band',
     this.fields = '[]',
+    this.fieldAliases = '{}',
   });
 
   List<String> get fieldsList {
@@ -55,6 +57,24 @@ class ExportSettingModel {
     fields = jsonEncode(list);
   }
 
+  Map<String, String> get fieldAliasesMap {
+    if (fieldAliases.isEmpty || fieldAliases == '{}') return {};
+    try {
+      return Map<String, String>.from(jsonDecode(fieldAliases));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  set fieldAliasesMap(Map<String, String> map) {
+    fieldAliases = jsonEncode(map);
+  }
+
+  String getFieldAlias(String field) {
+    final aliases = fieldAliasesMap;
+    return aliases[field] ?? '';
+  }
+
   Map<String, dynamic> toMap() {
     return {
       if (id != null) 'id': id,
@@ -63,6 +83,7 @@ class ExportSettingModel {
       'date_format': dateFormat,
       'band_format': bandFormat,
       'fields': fields,
+      'field_aliases': fieldAliases,
     };
   }
 
@@ -74,6 +95,7 @@ class ExportSettingModel {
       dateFormat: map['date_format'] as String? ?? 'YYYYMMDD',
       bandFormat: map['band_format'] as String? ?? 'band',
       fields: map['fields'] as String? ?? '[]',
+      fieldAliases: map['field_aliases'] as String? ?? '{}',
     );
   }
 
@@ -84,6 +106,7 @@ class ExportSettingModel {
     String? dateFormat,
     String? bandFormat,
     String? fields,
+    String? fieldAliases,
   }) {
     return ExportSettingModel(
       id: id ?? this.id,
@@ -92,6 +115,7 @@ class ExportSettingModel {
       dateFormat: dateFormat ?? this.dateFormat,
       bandFormat: bandFormat ?? this.bandFormat,
       fields: fields ?? this.fields,
+      fieldAliases: fieldAliases ?? this.fieldAliases,
     );
   }
 }

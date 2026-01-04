@@ -19,6 +19,10 @@ class _ExportSettingEditScreenState extends State<ExportSettingEditScreen> {
   String _selectedDateFormat = 'YYYYMMDD';
   String _selectedBandFormat = 'band';
   List<String> _selectedFields = [];
+  Map<String, String> _fieldAliases = {};
+
+  // Fields that can have custom ADIF names
+  static const _aliasableFields = ['qsonr', 'received', 'xtra'];
 
   bool get isEditing => widget.setting != null;
 
@@ -31,6 +35,7 @@ class _ExportSettingEditScreenState extends State<ExportSettingEditScreen> {
       _selectedDateFormat = widget.setting!.dateFormat;
       _selectedBandFormat = widget.setting!.bandFormat;
       _selectedFields = List.from(widget.setting!.fieldsList);
+      _fieldAliases = Map.from(widget.setting!.fieldAliasesMap);
     } else {
       // Default fields for new setting
       _selectedFields = ['callsign', 'qsodate', 'qsotime', 'band', 'mymode', 'rstout', 'rstin'];
@@ -55,6 +60,7 @@ class _ExportSettingEditScreenState extends State<ExportSettingEditScreen> {
       bandFormat: _selectedBandFormat,
     );
     setting.fieldsList = _selectedFields;
+    setting.fieldAliasesMap = _fieldAliases;
 
     bool success;
     if (isEditing) {
@@ -212,13 +218,41 @@ class _ExportSettingEditScreenState extends State<ExportSettingEditScreen> {
                       onReorder: _onReorder,
                       itemBuilder: (context, index) {
                         final field = _selectedFields[index];
+                        final isAliasable = _aliasableFields.contains(field);
                         return ListTile(
                           key: Key(field),
                           leading: Checkbox(
                             value: true,
                             onChanged: (_) => _toggleField(field),
                           ),
-                          title: Text(field),
+                          title: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(field),
+                              if (isAliasable)
+                                SizedBox(
+                                  height: 28,
+                                  child: TextField(
+                                    controller: TextEditingController(text: _fieldAliases[field] ?? ''),
+                                    decoration: const InputDecoration(
+                                      hintText: 'ADIF name',
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    style: const TextStyle(fontSize: 11),
+                                    onChanged: (v) {
+                                      if (v.trim().isEmpty) {
+                                        _fieldAliases.remove(field);
+                                      } else {
+                                        _fieldAliases[field] = v.trim().toUpperCase();
+                                      }
+                                    },
+                                  ),
+                                ),
+                            ],
+                          ),
                           trailing: ReorderableDragStartListener(
                             index: index,
                             child: const Icon(Icons.drag_handle),

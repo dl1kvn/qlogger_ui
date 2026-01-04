@@ -97,9 +97,13 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       controller.selection = TextSelection.collapsed(offset: controller.text.length);
     }
 
-    // Check for worked before when typing in callsign field
+    // Trigger the appropriate onChanged handler to handle spacebar toggle
     if (controller == callsignController) {
-      _checkWorkedBefore();
+      onCallsignChanged(controller.text);
+    } else if (controller == receivedInfoController) {
+      onInfoChanged(controller.text);
+    } else if (controller == xtra1Controller) {
+      onXtra1Changed(controller.text);
     }
   }
 
@@ -687,6 +691,16 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
         hasInternet = await ConnectivityService.hasInternetConnection();
       }
 
+      // Get contestId from selected activation
+      String contestId = '';
+      if (selectedActivationId.value != null) {
+        final activation = _dbController.activationList
+            .firstWhereOrNull((a) => a.id == selectedActivationId.value);
+        if (activation != null) {
+          contestId = activation.contestId;
+        }
+      }
+
       // Create QSO with failed flags set if no internet
       final qso = QsoModel(
         callsign: callsignController.text.toUpperCase(),
@@ -707,6 +721,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
         clublogEqslCall: selectedMyCallsign.value ?? '',
         clublogstatus: '0',
         activationId: selectedActivationId.value,
+        contestId: contestId,
         lotwFailed: (!hasInternet && needsLotw) ? 1 : 0,
         eqslFailed: (!hasInternet && needsEqsl) ? 1 : 0,
         clublogFailed: (!hasInternet && needsClublog) ? 1 : 0,
@@ -945,6 +960,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
         TextPosition(offset: callsignController.text.length),
       );
       infoFocus.requestFocus();
+      setActiveTextField(receivedInfoController);
     }
     // CQ zone or ITU zone lookup
     if (useCqzones) {
@@ -1005,8 +1021,10 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       );
       if (toggleSecondField) {
         xtra1Focus.requestFocus();
+        setActiveTextField(xtra1Controller);
       } else {
         callsignFocus.requestFocus();
+        setActiveTextField(callsignController);
       }
     }
   }
@@ -1019,6 +1037,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
         TextPosition(offset: xtra1Controller.text.length),
       );
       callsignFocus.requestFocus();
+      setActiveTextField(callsignController);
     }
   }
 
@@ -1213,7 +1232,12 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
           (a) => a.id == activationId,
         );
         if (activation.reference.isNotEmpty) {
-          parts.add(activation.reference.replaceAll('-', ''));
+          final showRefPrefix = _storage.read<bool>('show_ref_prefix') ?? false;
+          if (showRefPrefix) {
+            parts.add('${activation.type.toUpperCase()} ${activation.reference.replaceAll('-', '')}');
+          } else {
+            parts.add(activation.reference.replaceAll('-', ''));
+          }
         }
       } catch (_) {}
     }

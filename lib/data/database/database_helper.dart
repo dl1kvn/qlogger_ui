@@ -13,7 +13,7 @@ class DatabaseHelper {
   static Database? _database;
 
   static const String _dbName = 'qlogger.db';
-  static const int _dbVersion = 25;
+  static const int _dbVersion = 28;
 
   static const String qsoTable = 'qsoTable';
   static const String allsignTable = 'allsignTable';
@@ -66,6 +66,7 @@ class DatabaseHelper {
         clublog_eqsl_call TEXT,
         clublogstatus TEXT,
         activation_id INTEGER,
+        contest_id TEXT DEFAULT '',
         lotw_failed INTEGER DEFAULT 0,
         eqsl_failed INTEGER DEFAULT 0,
         clublog_failed INTEGER DEFAULT 0
@@ -117,7 +118,10 @@ class DatabaseHelper {
       CREATE TABLE $activationTable (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         type TEXT,
-        reference TEXT
+        reference TEXT,
+        description TEXT DEFAULT '',
+        image_path TEXT,
+        contest_id TEXT DEFAULT ''
       )
     ''');
 
@@ -165,7 +169,8 @@ class DatabaseHelper {
         format TEXT,
         date_format TEXT,
         band_format TEXT DEFAULT 'band',
-        fields TEXT
+        fields TEXT,
+        field_aliases TEXT DEFAULT '{}'
       )
     ''');
   }
@@ -301,6 +306,17 @@ class DatabaseHelper {
     if (oldVersion < 25) {
       await db.execute("ALTER TABLE $allsignTable ADD COLUMN useGermanKeyboard INTEGER DEFAULT 0");
     }
+    if (oldVersion < 26) {
+      await db.execute("ALTER TABLE $activationTable ADD COLUMN description TEXT DEFAULT ''");
+      await db.execute("ALTER TABLE $activationTable ADD COLUMN image_path TEXT");
+    }
+    if (oldVersion < 27) {
+      await db.execute("ALTER TABLE $exportSettingTable ADD COLUMN field_aliases TEXT DEFAULT '{}'");
+    }
+    if (oldVersion < 28) {
+      await db.execute("ALTER TABLE $activationTable ADD COLUMN contest_id TEXT DEFAULT ''");
+      await db.execute("ALTER TABLE $qsoTable ADD COLUMN contest_id TEXT DEFAULT ''");
+    }
   }
 
   // ==================== QSO CRUD ====================
@@ -354,6 +370,32 @@ class DatabaseHelper {
   Future<int> deleteAllQsos() async {
     final db = await database;
     return await db.delete(qsoTable);
+  }
+
+  /// Delete multiple QSOs by their IDs in a batch
+  Future<int> deleteQsosBatch(List<int> ids) async {
+    if (ids.isEmpty) return 0;
+    final db = await database;
+    final placeholders = List.filled(ids.length, '?').join(',');
+    return await db.delete(
+      qsoTable,
+      where: 'id IN ($placeholders)',
+      whereArgs: ids,
+    );
+  }
+
+  /// Insert multiple QSOs in a batch, returns list of inserted IDs
+  Future<List<int>> insertQsosBatch(List<QsoModel> qsos) async {
+    if (qsos.isEmpty) return [];
+    final db = await database;
+    final ids = <int>[];
+    await db.transaction((txn) async {
+      for (final qso in qsos) {
+        final id = await txn.insert(qsoTable, qso.toMap());
+        ids.add(id);
+      }
+    });
+    return ids;
   }
 
   Future<List<QsoModel>> searchQsos(String callsign) async {

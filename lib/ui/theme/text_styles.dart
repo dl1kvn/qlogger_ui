@@ -39,7 +39,7 @@ class FormStyles {
 
 class ButtonStyles {
   static const TextStyle button = TextStyle(
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.5,
   );

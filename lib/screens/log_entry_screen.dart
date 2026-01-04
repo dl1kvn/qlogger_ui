@@ -1,11 +1,16 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:file_picker/file_picker.dart';
 import '../controllers/database_controller.dart';
 import '../controllers/qso_form_controller.dart';
 import '../data/models/qso_model.dart';
 import '../data/models/export_setting_model.dart';
+import '../data/models/activation_model.dart';
 import '../services/export_service.dart';
+import '../services/adif_import_service.dart';
 import 'export_settings_screen.dart';
+import 'adif_import_screen.dart';
 
 class LogEntryScreen extends StatefulWidget {
   final int? initialActivationId;
@@ -32,7 +37,7 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
 
   // Pagination
   int _currentPage = 0;
-  static const int _itemsPerPage = 20;
+  static const int _itemsPerPage = 100;
 
   static const List<String> _allModes = [
     'All',
@@ -194,6 +199,145 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
     });
   }
 
+  Future<void> _confirmDeleteFiltered() async {
+    final qsosToDelete = _filteredQsos;
+    final qsoCount = qsosToDelete.length;
+
+    if (qsoCount == 0) {
+      Get.snackbar(
+        'Info',
+        'No QSOs to delete',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    // Check if filters are active
+    final hasFilters = _selectedMyCallsign != 'All' ||
+        _selectedMode != 'All' ||
+        _selectedBand != 'All' ||
+        _selectedActivationId != null ||
+        _dateFrom != null ||
+        _dateTo != null ||
+        _searchQuery.isNotEmpty;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(hasFilters ? 'Delete Filtered QSOs?' : 'Delete All QSOs?'),
+        content: Text(
+          hasFilters
+              ? 'This will permanently delete $qsoCount filtered QSOs.'
+              : 'This will permanently delete all $qsoCount QSOs from the database.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(hasFilters ? 'Delete $qsoCount' : 'Delete All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Deleting QSOs...'),
+            ],
+          ),
+        ),
+      );
+
+      // Batch delete all filtered QSOs
+      final ids = qsosToDelete
+          .where((q) => q.id != null)
+          .map((q) => q.id!)
+          .toList();
+
+      final deleted = await _dbController.deleteQsosBatch(ids);
+
+      if (mounted) Navigator.pop(context); // Close loading dialog
+
+      setState(() {
+        _currentPage = 0;
+      });
+      Get.snackbar(
+        'Deleted',
+        '$deleted QSOs have been deleted',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Future<void> _importAdif() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final filePath = result.files.first.path!;
+      final ext = filePath.toLowerCase().split('.').last;
+      if (ext != 'adi' && ext != 'adif') {
+        Get.snackbar(
+          'Error',
+          'Please select an ADIF file (.adi or .adif)',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      final file = File(filePath);
+      final content = await file.readAsString();
+
+      final records = AdifImportService.parseAdif(content);
+      if (records.isEmpty) {
+        Get.snackbar(
+          'Error',
+          'No QSO records found in file',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      final adifFields = AdifImportService.getFieldNames(records);
+
+      Get.to(() => AdifImportScreen(
+        records: records,
+        adifFields: adifFields,
+      ));
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to read file: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
   void _showExportDialog() {
     final exportSettings = _dbController.exportSettingList;
     final qsosToExport = _filteredQsos;
@@ -291,8 +435,18 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Qlogger – Log'),
+        title: const Text('Log'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_forever, color: Colors.red),
+            tooltip: 'Delete Filtered QSOs',
+            onPressed: _confirmDeleteFiltered,
+          ),
+          IconButton(
+            icon: const Icon(Icons.upload_file),
+            tooltip: 'Import ADIF',
+            onPressed: _importAdif,
+          ),
           IconButton(
             icon: const Icon(Icons.download),
             tooltip: 'Export',
@@ -445,8 +599,12 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // Activation dropdown
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Row 3: Activation dropdown and reset filter
+                Row(
+                  children: [
                     Expanded(
                       child: Obx(() {
                         final activations = _dbController.activationList;
@@ -470,9 +628,30 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
                             ...activations.map((a) {
                               return DropdownMenuItem<int?>(
                                 value: a.id,
-                                child: Text(
-                                  '${a.reference} ${a.type.toUpperCase()}',
-                                  overflow: TextOverflow.ellipsis,
+                                child: Row(
+                                  children: [
+                                    Icon(ActivationModel.getIcon(a.type), size: 16, color: ActivationModel.getColor(a.type)),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        a.reference,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (a.imagePath != null) ...[
+                                      const SizedBox(width: 4),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Image.file(
+                                          File(a.imagePath!),
+                                          width: 24,
+                                          height: 24,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               );
                             }),
@@ -500,7 +679,7 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                // Row 3: Date range
+                // Row 4: Date range
                 Row(
                   children: [
                     Expanded(
@@ -815,7 +994,7 @@ class _QsoListTile extends StatelessWidget {
             : null,
         trailing: GestureDetector(
           onTap: () => _showDeleteDialog(context),
-          child: const Icon(Icons.delete_outline, size: 18),
+          child: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
         ),
         dense: true,
         visualDensity: const VisualDensity(vertical: -4),
@@ -859,6 +1038,7 @@ class _QsoListTile extends StatelessWidget {
 
     String selectedBand = qso.band;
     String selectedMode = qso.mymode;
+    int? selectedActivationId = qso.activationId;
     DateTime? selectedDate;
     if (qso.qsodate.length == 8) {
       selectedDate = DateTime.tryParse(
@@ -898,6 +1078,7 @@ class _QsoListTile extends StatelessWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           title: const Text('Edit QSO'),
           content: SingleChildScrollView(
             child: Column(
@@ -1032,8 +1213,8 @@ class _QsoListTile extends StatelessWidget {
                         },
                         child: Text(
                           timeStr.length == 4
-                              ? '${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}'
-                              : 'Time',
+                              ? '${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)} UTC'
+                              : 'Time (in UTC)',
                         ),
                       ),
                     ),
@@ -1074,6 +1255,66 @@ class _QsoListTile extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                // Activation dropdown
+                Obx(() {
+                  final dbController = Get.find<DatabaseController>();
+                  final activations = dbController.activationList;
+                  return DropdownButtonFormField<int?>(
+                    value: selectedActivationId,
+                    decoration: const InputDecoration(
+                      labelText: 'Activation',
+                      isDense: true,
+                    ),
+                    isExpanded: true,
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('No activation'),
+                      ),
+                      ...activations.map((a) {
+                        return DropdownMenuItem<int?>(
+                          value: a.id,
+                          child: Row(
+                            children: [
+                              Icon(ActivationModel.getIcon(a.type), size: 16, color: ActivationModel.getColor(a.type)),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(a.reference, overflow: TextOverflow.ellipsis),
+                                    if (a.description.isNotEmpty)
+                                      Text(
+                                        a.description,
+                                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (a.imagePath != null) ...[
+                                const SizedBox(width: 4),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Image.file(
+                                    File(a.imagePath!),
+                                    width: 24,
+                                    height: 24,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (v) => setDialogState(() => selectedActivationId = v),
+                  );
+                }),
               ],
             ),
           ),
@@ -1098,6 +1339,7 @@ class _QsoListTile extends StatelessWidget {
                   mymode: selectedMode,
                   rstin: rstinCtrl.text,
                   rstout: rstoutCtrl.text,
+                  activationId: selectedActivationId,
                 );
                 onEdit(updated);
                 Navigator.pop(ctx);

@@ -124,6 +124,38 @@ class DatabaseController extends GetxController {
     }
   }
 
+  /// Delete multiple QSOs by ID in batch (no UI updates during operation)
+  Future<int> deleteQsosBatch(List<int> ids) async {
+    try {
+      error.value = '';
+      final deleted = await _db.deleteQsosBatch(ids);
+      // Update list once at the end
+      qsoList.removeWhere((q) => ids.contains(q.id));
+      return deleted;
+    } catch (e) {
+      error.value = 'Failed to delete QSOs: $e';
+      return 0;
+    }
+  }
+
+  /// Add multiple QSOs in batch (no UI updates during operation)
+  Future<int> addQsosBatch(List<QsoModel> qsos) async {
+    try {
+      error.value = '';
+      final ids = await _db.insertQsosBatch(qsos);
+      // Create QSOs with their new IDs and add to list once at end
+      final newQsos = <QsoModel>[];
+      for (int i = 0; i < qsos.length; i++) {
+        newQsos.add(qsos[i].copyWith(id: ids[i]));
+      }
+      qsoList.insertAll(0, newQsos);
+      return ids.length;
+    } catch (e) {
+      error.value = 'Failed to add QSOs: $e';
+      return 0;
+    }
+  }
+
   Future<void> searchQsos(String callsign) async {
     try {
       isLoading.value = true;

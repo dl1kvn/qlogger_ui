@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../data/models/pota_park_model.dart';
 import '../data/database/database_helper.dart';
@@ -12,7 +13,9 @@ class PotaImportService {
       throw Exception('Failed to download POTA data: ${response.statusCode}');
     }
 
-    final lines = response.body.split('\n');
+    // Decode as UTF-8 to properly handle umlauts and special characters
+    final body = utf8.decode(response.bodyBytes);
+    final lines = body.split('\n');
     if (lines.isEmpty) {
       throw Exception('Empty CSV file');
     }

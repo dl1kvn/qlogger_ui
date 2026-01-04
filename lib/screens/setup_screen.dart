@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'online_logs_screen.dart';
 import 'my_callsigns_screen.dart';
 import 'activations_screen.dart';
+import 'help_screen.dart';
 
 class SetupScreen extends StatelessWidget {
   const SetupScreen({super.key});
@@ -115,54 +116,43 @@ class SetupScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Qlogger – Setup')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () => Get.to(() => const OnlineLogsScreen()),
-                    icon: const Icon(Icons.cloud),
-                    label: const Text('Online Logs'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () => Get.to(() => const MyCallsignsScreen()),
-                    icon: const Icon(Icons.person),
-                    label: const Text('My Callsigns'),
-                  ),
-                ),
-              ],
+      appBar: AppBar(title: const Text('Setup')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            FilledButton.icon(
+              onPressed: () => Get.to(() => const MyCallsignsScreen()),
+              icon: const Icon(Icons.person),
+              label: const Text('My Callsigns'),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () => Get.to(() => const ActivationsScreen()),
-                    icon: const Icon(Icons.terrain),
-                    label: const Text('Activations'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: _showSplashImageDialog,
-                    icon: const Icon(Icons.image),
-                    label: const Text('Splash Image'),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: () => Get.to(() => const ActivationsScreen()),
+              icon: const Icon(Icons.terrain),
+              label: const Text('Activations'),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: _showSplashImageDialog,
+              icon: const Icon(Icons.image),
+              label: const Text('Splash Image'),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: () => Get.to(() => const OnlineLogsScreen()),
+              icon: const Icon(Icons.cloud),
+              label: const Text('Online Logs'),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: () => Get.to(() => const HelpScreen()),
+              icon: const Icon(Icons.help),
+              label: const Text('Help'),
+            ),
+          ],
+        ),
       ),
     );
   }

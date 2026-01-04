@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -6,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../controllers/qso_form_controller.dart';
 import '../../controllers/database_controller.dart';
 import '../../controllers/bluetooth_controller.dart';
+import '../../controllers/theme_controller.dart';
 import '../../screens/my_callsigns_screen.dart';
 import '../../data/models/activation_model.dart';
 import '../theme/text_styles.dart';
@@ -20,6 +22,7 @@ final _storage = GetStorage();
 final _infoLineBgColor = (_storage.read<int>('info_line_bg') ?? 0xFFFFE0B2).obs;
 final _infoLineTextColor =
     (_storage.read<int>('info_line_text') ?? 0xFF000000).obs;
+final _showRefPrefix = (_storage.read<bool>('show_ref_prefix') ?? false).obs;
 
 void _showInfoLineSettings(BuildContext context) {
   final bgColors = [
@@ -172,7 +175,11 @@ class QsoForm extends StatelessWidget {
         'color': Colors.green,
         'onPressed': c.sendCq,
       },
-      'MY': {'label': 'MY', 'color': Colors.grey, 'onPressed': c.sendMyCall},
+      'MY': {
+        'label': c.selectedMyCallsign.value ?? 'MY',
+        'color': Colors.grey,
+        'onPressed': c.sendMyCall,
+      },
       'CALL': {
         'label': 'CALL?',
         'color': Colors.blueGrey,
@@ -375,11 +382,36 @@ class QsoForm extends StatelessWidget {
                                         Icon(ActivationModel.getIcon(a.type), size: 16, color: ActivationModel.getColor(a.type)),
                                         const SizedBox(width: 4),
                                         Expanded(
-                                          child: Text(
-                                            a.reference,
-                                            overflow: TextOverflow.ellipsis,
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                a.reference,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              if (a.description.isNotEmpty)
+                                                Text(
+                                                  a.description,
+                                                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                            ],
                                           ),
                                         ),
+                                        if (a.imagePath != null) ...[
+                                          const SizedBox(width: 4),
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(3),
+                                            child: Image.file(
+                                              File(a.imagePath!),
+                                              width: 20,
+                                              height: 20,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   );
@@ -449,8 +481,13 @@ class QsoForm extends StatelessWidget {
                                                                 );
                                                         if (activation !=
                                                             null) {
-                                                          activationRef =
-                                                              ' ${activation.reference.replaceAll('-', '')}';
+                                                          if (_showRefPrefix.value) {
+                                                            activationRef =
+                                                                ' ${activation.type.toUpperCase()} ${activation.reference.replaceAll('-', '')}';
+                                                          } else {
+                                                            activationRef =
+                                                                ' ${activation.reference.replaceAll('-', '')}';
+                                                          }
                                                         }
                                                       }
                                                       String rstText =
@@ -511,6 +548,18 @@ class QsoForm extends StatelessWidget {
                                 ),
                           ),
                         ),
+                        Obx(() => GestureDetector(
+                          onTap: () {
+                            _showRefPrefix.value = !_showRefPrefix.value;
+                            _storage.write('show_ref_prefix', _showRefPrefix.value);
+                          },
+                          child: Icon(
+                            _showRefPrefix.value ? Icons.check_box : Icons.check_box_outline_blank,
+                            size: 18,
+                            color: textColor.withOpacity(0.6),
+                          ),
+                        )),
+                        const SizedBox(width: 4),
                         GestureDetector(
                           onTap: () => _showInfoLineSettings(context),
                           child: Icon(
@@ -530,8 +579,9 @@ class QsoForm extends StatelessWidget {
                   // Trigger rebuild when callsign changes
                   c.selectedMyCallsign.value;
                   if (c.contestMode.value) return const SizedBox.shrink();
+                  final isDark = Get.find<ThemeController>().isDarkMode.value;
                   return Container(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? Colors.black : AppColors.surfaceLight,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 4,
@@ -617,12 +667,14 @@ class QsoForm extends StatelessWidget {
                   );
                 }),
                 SizedBox(height: P.lineSpacing),
-                // CW Speed slider (only visible in CW mode, hidden in contest mode)
+                // CW Speed slider (only visible in CW mode, BT connected, hidden in contest mode)
                 Obx(() {
+                  final btController = Get.find<BluetoothController>();
                   if (c.selectedMode.value != 'CW')
                     return const SizedBox.shrink();
+                  if (!btController.isConnected.value)
+                    return const SizedBox.shrink();
                   if (c.contestMode.value) return const SizedBox.shrink();
-                  final btController = Get.find<BluetoothController>();
                   // Clamp speed to valid range and update if out of bounds
                   if (btController.cwSpeed.value < 16 ||
                       btController.cwSpeed.value > 36) {
@@ -679,12 +731,16 @@ class QsoForm extends StatelessWidget {
                 SizedBox(height: P.lineSpacing),
                 // CW Checkbox row (only visible in CW mode, hidden in contest mode)
                 Obx(
-                  () => c.selectedMode.value == 'CW' && !c.contestMode.value
-                      ? Column(
-                          children: [
-                            Container(
-                              padding: P.fieldBig,
-                              color: AppColors.surfaceLight,
+                  () {
+                    if (c.selectedMode.value != 'CW' || c.contestMode.value) {
+                      return const SizedBox.shrink();
+                    }
+                    final isDark = Get.find<ThemeController>().isDarkMode.value;
+                    return Column(
+                      children: [
+                        Container(
+                          padding: P.fieldBig,
+                          color: isDark ? Colors.black : AppColors.surfaceLight,
                               child: Row(
                                 children: [
                                   Expanded(
@@ -757,10 +813,10 @@ class QsoForm extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            SizedBox(height: P.lineSpacing),
-                          ],
-                        )
-                      : const SizedBox.shrink(),
+                        SizedBox(height: P.lineSpacing),
+                      ],
+                    );
+                  },
                 ),
                 // Row 1: Icon, Callsign, RST IN, RST OUT
                 Row(
@@ -1117,36 +1173,40 @@ class QsoForm extends StatelessWidget {
                   final isConnected = btController.isConnected.value;
                   final rows = c.buttonLayoutRows.value;
 
+                  // Check if button should be visible
+                  bool isButtonVisible(String buttonId) {
+                    if (buttonId == 'CUSTOM' && c.cwCustomText.value.isEmpty) {
+                      return false;
+                    }
+                    if (['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM', 'SEND'].contains(buttonId)) {
+                      if (!isCwMode || !isConnected) return false;
+                    }
+                    return true;
+                  }
+
                   return Column(
-                    children: rows.map((row) {
-                      // Filter out buttons that shouldn't be shown
-                      final visibleButtons = row.where((buttonId) {
-                        // CUSTOM only visible if cwCustomText is set
-                        if (buttonId == 'CUSTOM' &&
-                            c.cwCustomText.value.isEmpty) {
-                          return false;
-                        }
-                        // CW-specific buttons only visible in CW mode with BT connected
-                        if ([
-                          'CQ',
-                          'MY',
-                          'CALL',
-                          'RPT',
-                          'CUSTOM',
-                          'SEND',
-                        ].contains(buttonId)) {
-                          if (!isCwMode || !isConnected) return false;
-                        }
-                        return true;
-                      }).toList();
+                    children: rows.asMap().entries.map((entry) {
+                      final rowIndex = entry.key;
+                      final row = entry.value;
+                      if (row.isEmpty) return const SizedBox.shrink();
 
-                      if (visibleButtons.isEmpty)
-                        return const SizedBox.shrink();
+                      // Check if any button in this row is visible
+                      final hasVisibleButton = row.any((buttonId) => isButtonVisible(buttonId));
+                      if (!hasVisibleButton) return const SizedBox.shrink();
 
-                      return Row(
-                        children: visibleButtons.map((buttonId) {
-                          return Expanded(child: _buildButton(buttonId, c));
-                        }).toList(),
+                      return Column(
+                        children: [
+                          if (rowIndex > 0 && rows.sublist(0, rowIndex).any((r) => r.any((b) => isButtonVisible(b))))
+                            const SizedBox(height: 2),
+                          Row(
+                            children: row.map((buttonId) {
+                              if (!isButtonVisible(buttonId)) {
+                                return const Expanded(child: SizedBox.shrink());
+                              }
+                              return Expanded(child: _buildButton(buttonId, c));
+                            }).toList(),
+                          ),
+                        ],
                       );
                     }).toList(),
                   );

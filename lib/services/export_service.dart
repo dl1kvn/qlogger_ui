@@ -99,6 +99,7 @@ class ExportService {
     buffer.writeln();
 
     final selectedFields = setting.fieldsList;
+    final fieldAliases = setting.fieldAliasesMap;
 
     for (final qso in qsos) {
       final qsoMap = qso.toMap();
@@ -119,7 +120,11 @@ class ExportService {
           continue;
         }
 
-        final adifTag = _fieldToAdif[field];
+        // Use custom alias if defined, otherwise use default ADIF tag
+        final customAlias = fieldAliases[field];
+        final adifTag = (customAlias != null && customAlias.isNotEmpty)
+            ? customAlias
+            : _fieldToAdif[field];
         if (adifTag == null) continue;
 
         String value = _getFieldValue(qsoMap, field, setting.dateFormat);
