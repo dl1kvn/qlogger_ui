@@ -25,6 +25,8 @@ final _infoLineTextColor =
 final _showRefPrefix = (_storage.read<bool>('show_ref_prefix') ?? false).obs;
 
 void _showInfoLineSettings(BuildContext context) {
+  final isDark = Get.find<ThemeController>().isDarkMode.value;
+  final textColor = isDark ? Colors.white : Colors.black87;
   final bgColors = [
     0xFFFFE0B2, // Light Orange
     0xFFFFCDD2, // Light Red
@@ -50,7 +52,7 @@ void _showInfoLineSettings(BuildContext context) {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Background', style: TextStyle(fontSize: 12)),
+          Text('Background', style: TextStyle(fontSize: 12, color: textColor)),
           const SizedBox(height: 4),
           Wrap(
             spacing: 4,
@@ -81,7 +83,7 @@ void _showInfoLineSettings(BuildContext context) {
             }).toList(),
           ),
           const SizedBox(height: 12),
-          const Text('Text', style: TextStyle(fontSize: 12)),
+          Text('Text', style: TextStyle(fontSize: 12, color: textColor)),
           const SizedBox(height: 4),
           Wrap(
             spacing: 4,
@@ -127,13 +129,14 @@ void _showInfoLineSettings(BuildContext context) {
                         ? Icons.check_box
                         : Icons.check_box_outline_blank,
                     size: 20,
+                    color: textColor,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: RichText(
-                      text: const TextSpan(
-                        style: TextStyle(fontSize: 12, color: Colors.black87),
-                        children: [
+                      text: TextSpan(
+                        style: TextStyle(fontSize: 12, color: textColor),
+                        children: const [
                           TextSpan(
                             text: 'cw - send activation type \n eg 599 ',
                           ),
@@ -368,9 +371,11 @@ class QsoForm extends StatelessWidget {
             child: Column(
               children: [
                 // Top row: Bluetooth, My Callsign, Status
-                Container(
-                  color: AppColors.surfaceLight,
-                  child: Row(
+                Obx(() {
+                  final isDark = Get.find<ThemeController>().isDarkMode.value;
+                  return Container(
+                    color: isDark ? Colors.black : AppColors.surfaceLight,
+                    child: Row(
                     children: [
                       // My Callsign dropdown
                       Expanded(
@@ -485,7 +490,8 @@ class QsoForm extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
+                  );
+                }),
                 SizedBox(height: P.lineSpacing),
                 // Status text
                 Obx(() {
@@ -655,20 +661,6 @@ class QsoForm extends StatelessWidget {
                         _buildStatusIndicator('SPC', c.useSpacebarToggle),
                         const SizedBox(width: 2),
                         _buildStatusIndicator('2nd', c.toggleSecondField),
-                        const SizedBox(width: 2),
-                        const Text(
-                          '|',
-                          style: TextStyle(fontSize: 8, color: Colors.red),
-                        ),
-                        const SizedBox(width: 2),
-                        // Counter checkbox
-                        Padding(
-                          padding: P.field,
-                          child: LabeledCheckbox(
-                            label: 'NR',
-                            value: c.useCounter,
-                          ),
-                        ),
                         const SizedBox(width: 2),
                         const Text(
                           '|',

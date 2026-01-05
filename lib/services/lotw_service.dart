@@ -126,6 +126,8 @@ class LotwService {
     // Upload
     final dio = Dio();
     dio.options.headers['User-Agent'] = 'TrustedQslJava';
+    dio.options.connectTimeout = const Duration(seconds: 30);
+    dio.options.receiveTimeout = const Duration(seconds: 60);
 
     final formData = FormData.fromMap({
       'upfile': await MultipartFile.fromFile(
@@ -139,7 +141,8 @@ class LotwService {
     final encodedPassword = Uri.encodeComponent(lotwPassword);
 
     final response = await dio.post(
-      'https://lotw.arrl.org/lotwuser/upload?login=$encodedLogin&password=$encodedPassword',
+      // 'https://lotw.arrl.org/lotwuser/upload?login=$encodedLogin&password=$encodedPassword',
+      'https://lotw.arrl.org/lotw/upload',
       data: formData,
     );
 
@@ -214,22 +217,28 @@ class LotwService {
     if (activationReference.isNotEmpty) {
       switch (activationType) {
         case 'iota':
-          activationAdif = '<MY_IOTA:${activationReference.length}>$activationReference';
+          activationAdif =
+              '<MY_IOTA:${activationReference.length}>$activationReference';
           break;
         case 'sota':
-          activationAdif = '<MY_SOTA_REF:${activationReference.length}>$activationReference';
+          activationAdif =
+              '<MY_SOTA_REF:${activationReference.length}>$activationReference';
           break;
         case 'gma':
-          activationAdif = '<GMA_REF:${activationReference.length}>$activationReference';
+          activationAdif =
+              '<GMA_REF:${activationReference.length}>$activationReference';
           break;
         case 'pota':
-          activationAdif = '<MY_POTA_REF:${activationReference.length}>$activationReference';
+          activationAdif =
+              '<MY_POTA_REF:${activationReference.length}>$activationReference';
           break;
         case 'cota':
-          activationAdif = '<MY_COTA_REF:${activationReference.length}>$activationReference';
+          activationAdif =
+              '<MY_COTA_REF:${activationReference.length}>$activationReference';
           break;
         case 'custom':
-          activationAdif = '<COMMENT:${activationReference.length}>$activationReference';
+          activationAdif =
+              '<COMMENT:${activationReference.length}>$activationReference';
           break;
       }
     }

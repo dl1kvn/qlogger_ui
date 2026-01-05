@@ -399,6 +399,10 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     } catch (_) {}
   }
 
+  void toggleUseCounter() {
+    useCounter.value = !useCounter.value;
+  }
+
   void _loadCwPrePost() {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) {
@@ -800,9 +804,10 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       final myCall = selectedMyCallsign.value;
       if (myCall == null || myCall.isEmpty) return;
 
-      final cs = _dbController.callsignList.firstWhere(
+      final cs = _dbController.callsignList.where(
         (c) => c.callsign == myCall,
-      );
+      ).firstOrNull;
+      if (cs == null) return;
 
       final (activationType, activationReference) = _getActivationData();
 
@@ -851,9 +856,10 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       final myCall = selectedMyCallsign.value;
       if (myCall == null || myCall.isEmpty) return;
 
-      final cs = _dbController.callsignList.firstWhere(
+      final cs = _dbController.callsignList.where(
         (c) => c.callsign == myCall,
-      );
+      ).firstOrNull;
+      if (cs == null) return;
 
       await ClublogService.uploadQso(
         myCallsign: cs.callsign,
@@ -892,9 +898,10 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       final myCall = selectedMyCallsign.value;
       if (myCall == null || myCall.isEmpty) return;
 
-      final cs = _dbController.callsignList.firstWhere(
+      final cs = _dbController.callsignList.where(
         (c) => c.callsign == myCall,
-      );
+      ).firstOrNull;
+      if (cs == null) return;
 
       final (activationType, activationReference) = _getActivationData();
 

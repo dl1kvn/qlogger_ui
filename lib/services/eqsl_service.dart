@@ -17,7 +17,7 @@ class EqslService {
     '440': '70cm',
   };
 
-  static const String _baseUrl = 'https://www.eqsl.cc/qslcard/ImportADIF.cfm';
+  static const String _baseUrl = 'https://www.eQSL.cc/qslcard/importADIF.cfm';
 
   /// Upload a QSO to eQSL
   /// Returns true if successful, throws exception on error
@@ -54,12 +54,16 @@ class EqslService {
       activationReference: activationReference,
     );
 
-    // Build URL with parameters
-    final url = '$_baseUrl?EQSL_USER=$myCallsign&EQSL_PSWD=$eqslPassword&ADIFData=$adif';
-    final encodedUrl = Uri.encodeFull(url);
-
-    // POST to eQSL
-    final response = await http.post(Uri.parse(encodedUrl));
+    // POST to eQSL with form fields
+    // Use callsign as username (eQSL typically uses callsign for login)
+    final response = await http.post(
+      Uri.parse(_baseUrl),
+      body: {
+        'eQSL_User': myCallsign.trim(),
+        'eQSL_Pswd': eqslPassword.trim(),
+        'ADIFData': adif,
+      },
+    ).timeout(const Duration(seconds: 30));
 
     // Check response for success
     if (response.body.contains('records added')) {

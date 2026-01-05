@@ -199,6 +199,297 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
     });
   }
 
+  void _showAddQsoDialog() {
+    final callsignCtrl = TextEditingController();
+    final receivedCtrl = TextEditingController();
+    final xtraCtrl = TextEditingController();
+    final qsonrCtrl = TextEditingController();
+    final rstinCtrl = TextEditingController(text: '59');
+    final rstoutCtrl = TextEditingController(text: '59');
+
+    String selectedBand = '14';
+    String selectedMode = 'SSB';
+    int? selectedActivationId;
+    DateTime selectedDate = DateTime.now().toUtc();
+    String timeStr = '${selectedDate.hour.toString().padLeft(2, '0')}${selectedDate.minute.toString().padLeft(2, '0')}';
+    String? selectedMyCallsign = _qsoFormController.selectedMyCallsign.value;
+
+    const bands = [
+      '1.8', '3.5', '5', '7', '10', '14', '18', '21', '24', '28', '50', '144', '440',
+    ];
+    const modes = [
+      'CW', 'SSB', 'FM', 'FT8', 'FT4', 'AM', 'RTTY', 'PSK', 'DIGI',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          title: const Text('Add QSO', style: TextStyle(fontSize: 16)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // My Callsign dropdown
+                DropdownButtonFormField<String>(
+                  value: selectedMyCallsign,
+                  decoration: const InputDecoration(
+                    labelText: 'My Callsign',
+                    isDense: true,
+                  ),
+                  isExpanded: true,
+                  items: _dbController.callsignList.map((c) {
+                    return DropdownMenuItem(
+                      value: c.callsign,
+                      child: Text(c.callsign),
+                    );
+                  }).toList(),
+                  onChanged: (v) => setDialogState(() => selectedMyCallsign = v),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: callsignCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'DX Callsign',
+                    isDense: true,
+                  ),
+                  textCapitalization: TextCapitalization.characters,
+                  autofocus: true,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: receivedCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Nr/Info',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: xtraCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Xtra',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedBand,
+                        decoration: const InputDecoration(
+                          labelText: 'Band',
+                          isDense: true,
+                        ),
+                        isExpanded: true,
+                        items: bands.map((b) => DropdownMenuItem(value: b, child: Text('$b MHz'))).toList(),
+                        onChanged: (v) => setDialogState(() => selectedBand = v ?? selectedBand),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedMode,
+                        decoration: const InputDecoration(
+                          labelText: 'Mode',
+                          isDense: true,
+                        ),
+                        isExpanded: true,
+                        items: modes.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                        onChanged: (v) => setDialogState(() => selectedMode = v ?? selectedMode),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          final picked = await showDatePicker(
+                            context: ctx,
+                            initialDate: selectedDate,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            setDialogState(() => selectedDate = picked);
+                          }
+                        },
+                        child: Text(
+                          '${selectedDate.day.toString().padLeft(2, '0')}.${selectedDate.month.toString().padLeft(2, '0')}.${selectedDate.year}',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          final initialTime = TimeOfDay(
+                            hour: timeStr.length >= 2 ? int.tryParse(timeStr.substring(0, 2)) ?? 0 : 0,
+                            minute: timeStr.length >= 4 ? int.tryParse(timeStr.substring(2, 4)) ?? 0 : 0,
+                          );
+                          final picked = await showTimePicker(context: ctx, initialTime: initialTime);
+                          if (picked != null) {
+                            setDialogState(() {
+                              timeStr = '${picked.hour.toString().padLeft(2, '0')}${picked.minute.toString().padLeft(2, '0')}';
+                            });
+                          }
+                        },
+                        child: Text(
+                          timeStr.length == 4 ? '${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)} UTC' : 'Time (UTC)',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: qsonrCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Count',
+                          isDense: true,
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: rstinCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'RST In',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: rstoutCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'RST Out',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Activation dropdown
+                Obx(() {
+                  final activations = _dbController.activationList;
+                  return DropdownButtonFormField<int?>(
+                    value: selectedActivationId,
+                    decoration: const InputDecoration(
+                      labelText: 'Activation',
+                      isDense: true,
+                    ),
+                    isExpanded: true,
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('No activation'),
+                      ),
+                      ...activations.map((a) {
+                        return DropdownMenuItem<int?>(
+                          value: a.id,
+                          child: Row(
+                            children: [
+                              Icon(ActivationModel.getIcon(a.type), size: 16, color: ActivationModel.getColor(a.type)),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(a.reference, overflow: TextOverflow.ellipsis),
+                                    if (a.title.isNotEmpty)
+                                      Text(
+                                        a.title,
+                                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (a.imagePath != null) ...[
+                                const SizedBox(width: 4),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Image.file(
+                                    File(a.imagePath!),
+                                    width: 24,
+                                    height: 24,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (v) => setDialogState(() => selectedActivationId = v),
+                  );
+                }),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (callsignCtrl.text.isEmpty || selectedMyCallsign == null) {
+                  Get.snackbar('Error', 'Callsign and My Callsign are required',
+                      snackPosition: SnackPosition.BOTTOM);
+                  return;
+                }
+                final dateStr = '${selectedDate.year}${selectedDate.month.toString().padLeft(2, '0')}${selectedDate.day.toString().padLeft(2, '0')}';
+                final newQso = QsoModel(
+                  callsign: callsignCtrl.text.toUpperCase(),
+                  clublogEqslCall: selectedMyCallsign!,
+                  received: receivedCtrl.text,
+                  xtra: xtraCtrl.text,
+                  qsonr: qsonrCtrl.text,
+                  qsodate: dateStr,
+                  qsotime: timeStr,
+                  band: selectedBand,
+                  mymode: selectedMode,
+                  rstin: rstinCtrl.text,
+                  rstout: rstoutCtrl.text,
+                  activationId: selectedActivationId,
+                );
+                await _dbController.addQso(newQso);
+                Navigator.pop(ctx);
+                Get.snackbar('Success', 'QSO added', snackPosition: SnackPosition.BOTTOM);
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _confirmDeleteFiltered() async {
     final qsosToDelete = _filteredQsos;
     final qsoCount = qsosToDelete.length;
@@ -744,6 +1035,18 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
                           minHeight: 32,
                         ),
                       ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: _showAddQsoDialog,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Add QSO'),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ],

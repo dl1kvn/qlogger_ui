@@ -17,7 +17,10 @@ class ClublogService {
     '440': '70cm',
   };
 
-  static const String _apiKey = '60af181c673d565408e30fe216c74961aa791954';
+  static const String _apiKey = String.fromEnvironment(
+    'CLUBLOG_API_KEY',
+    defaultValue: '60af181c673d565408e30fe216c74961aa791954',
+  );
   static const String _uploadUrl = 'https://clublog.org/realtime.php';
 
   /// Upload a QSO to ClubLog
@@ -63,7 +66,7 @@ class ClublogService {
         'api': _apiKey,
         'adif': adif,
       },
-    );
+    ).timeout(const Duration(seconds: 30));
 
     if (response.statusCode == 200) {
       return true;

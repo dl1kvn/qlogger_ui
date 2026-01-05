@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -10,6 +11,40 @@ import 'package:image/image.dart' as img;
 import '../controllers/database_controller.dart';
 import '../data/models/activation_model.dart';
 import '../data/models/activation_image_model.dart';
+
+/// Processes thumbnail image in isolate - resizes to max 200px and encodes as PNG
+Uint8List? _processThumbnailImage(Uint8List bytes) {
+  final image = img.decodeImage(bytes);
+  if (image == null) return null;
+
+  img.Image resized;
+  if (image.width > image.height) {
+    resized = img.copyResize(image, width: 200);
+  } else {
+    resized = img.copyResize(image, height: 200);
+  }
+
+  return Uint8List.fromList(img.encodePng(resized));
+}
+
+/// Processes gallery image in isolate - resizes to max 1800px and encodes as JPEG
+Uint8List? _processGalleryImage(Uint8List bytes) {
+  final image = img.decodeImage(bytes);
+  if (image == null) return null;
+
+  img.Image resized;
+  if (image.width > 1800 || image.height > 1800) {
+    if (image.width > image.height) {
+      resized = img.copyResize(image, width: 1800);
+    } else {
+      resized = img.copyResize(image, height: 1800);
+    }
+  } else {
+    resized = image;
+  }
+
+  return Uint8List.fromList(img.encodeJpg(resized, quality: 85));
+}
 
 class ActivationEditScreen extends StatefulWidget {
   final ActivationModel activation;
@@ -76,25 +111,15 @@ class _ActivationEditScreenState extends State<ActivationEditScreen> {
     if (result != null && result.files.single.path != null) {
       final sourcePath = result.files.single.path!;
       final appDir = await getApplicationDocumentsDirectory();
-      final fileName = 'activation_${widget.activation.id ?? DateTime.now().millisecondsSinceEpoch}${p.extension(sourcePath)}';
+      final fileName = 'activation_${widget.activation.id ?? DateTime.now().millisecondsSinceEpoch}.png';
       final destPath = p.join(appDir.path, fileName);
 
-      // Read and resize image
+      // Read and resize image in isolate
       final bytes = await File(sourcePath).readAsBytes();
-      final image = img.decodeImage(bytes);
+      final pngBytes = await compute(_processThumbnailImage, bytes);
 
-      if (image != null) {
-        // Resize to max 200px while maintaining aspect ratio
-        img.Image resized;
-        if (image.width > image.height) {
-          resized = img.copyResize(image, width: 200);
-        } else {
-          resized = img.copyResize(image, height: 200);
-        }
-
-        // Save as PNG
-        final pngBytes = img.encodePng(resized);
-        final destFile = File(destPath.replaceAll(p.extension(destPath), '.png'));
+      if (pngBytes != null) {
+        final destFile = File(destPath);
         await destFile.writeAsBytes(pngBytes);
 
         setState(() {
@@ -188,25 +213,11 @@ class _ActivationEditScreenState extends State<ActivationEditScreen> {
     final fileName = 'gallery_${widget.activation.id}_$timestamp.jpg';
     final destPath = p.join(appDir.path, fileName);
 
-    // Read and resize image
+    // Read and resize image in isolate
     final bytes = await File(sourcePath).readAsBytes();
-    final image = img.decodeImage(bytes);
+    final jpgBytes = await compute(_processGalleryImage, bytes);
 
-    if (image != null) {
-      // Resize to max 1800px while maintaining aspect ratio
-      img.Image resized;
-      if (image.width > 1800 || image.height > 1800) {
-        if (image.width > image.height) {
-          resized = img.copyResize(image, width: 1800);
-        } else {
-          resized = img.copyResize(image, height: 1800);
-        }
-      } else {
-        resized = image;
-      }
-
-      // Save as JPEG
-      final jpgBytes = img.encodeJpg(resized, quality: 85);
+    if (jpgBytes != null) {
       final destFile = File(destPath);
       await destFile.writeAsBytes(jpgBytes);
 

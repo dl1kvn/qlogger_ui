@@ -462,6 +462,21 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               ),
               obscureText: true,
             ),
+            const SizedBox(height: 12),
+            _buildCopyFromDropdown(
+              otherCallsigns: _dbController.callsignList
+                  .where((c) =>
+                      c.id != widget.callsign?.id &&
+                      c.clublogemail.isNotEmpty &&
+                      c.clublogpw.isNotEmpty)
+                  .toList(),
+              onCopy: (callsign) {
+                setState(() {
+                  _clublogemailController.text = callsign.clublogemail;
+                  _clublogpwController.text = callsign.clublogpw;
+                });
+              },
+            ),
             const SizedBox(height: 24),
             _buildSectionHeader(
               'eQSL',
@@ -484,6 +499,21 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
                 border: OutlineInputBorder(),
               ),
               obscureText: true,
+            ),
+            const SizedBox(height: 12),
+            _buildCopyFromDropdown(
+              otherCallsigns: _dbController.callsignList
+                  .where((c) =>
+                      c.id != widget.callsign?.id &&
+                      c.eqsluser.isNotEmpty &&
+                      c.eqslpassword.isNotEmpty)
+                  .toList(),
+              onCopy: (callsign) {
+                setState(() {
+                  _eqsluserController.text = callsign.eqsluser;
+                  _eqslpasswordController.text = callsign.eqslpassword;
+                });
+              },
             ),
             const SizedBox(height: 24),
             _buildSectionHeader(
@@ -559,6 +589,54 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCopyFromDropdown({
+    required List<CallsignModel> otherCallsigns,
+    required void Function(CallsignModel) onCopy,
+  }) {
+    if (otherCallsigns.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    CallsignModel? selectedCallsign;
+
+    return StatefulBuilder(
+      builder: (context, setLocalState) {
+        return Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<CallsignModel>(
+                value: selectedCallsign,
+                decoration: const InputDecoration(
+                  labelText: 'Copy from other callsign',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                isExpanded: true,
+                hint: const Text('Choose from other calls'),
+                items: otherCallsigns.map((c) {
+                  return DropdownMenuItem<CallsignModel>(
+                    value: c,
+                    child: Text(c.callsign),
+                  );
+                }).toList(),
+                onChanged: (v) {
+                  setLocalState(() => selectedCallsign = v);
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: selectedCallsign != null
+                  ? () => onCopy(selectedCallsign!)
+                  : null,
+              child: const Text('Copy'),
+            ),
+          ],
+        );
+      },
     );
   }
 

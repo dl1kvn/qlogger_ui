@@ -129,6 +129,14 @@ class StartScreen extends StatelessWidget {
               onTap: c.toggleContestMode,
             ),
           ),
+          // Serial number (NR) toggle
+          Obx(
+            () => _appBarIconButton(
+              icon: Icons.tag,
+              color: c.useCounter.value ? Colors.green : Colors.grey,
+              onTap: c.toggleUseCounter,
+            ),
+          ),
           // Custom keyboard toggle icon
           Obx(
             () => _appBarIconButton(

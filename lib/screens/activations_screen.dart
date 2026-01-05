@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -14,6 +15,21 @@ import 'activation_detail_screen.dart';
 import 'iota_references_screen.dart';
 import 'log_entry_screen.dart';
 import 'pota_references_screen.dart';
+
+/// Processes image in isolate - resizes to max 200px and encodes as PNG
+Future<Uint8List?> _processActivationImage(Uint8List bytes) async {
+  final image = img.decodeImage(bytes);
+  if (image == null) return null;
+
+  img.Image resized;
+  if (image.width > image.height) {
+    resized = img.copyResize(image, width: 200);
+  } else {
+    resized = img.copyResize(image, height: 200);
+  }
+
+  return Uint8List.fromList(img.encodePng(resized));
+}
 
 const _activationUrls = {
   'pota': 'https://pota.app/#/map',
@@ -163,24 +179,14 @@ class ActivationsScreen extends StatelessWidget {
               final sourcePath = result.files.single.path!;
               final appDir = await getApplicationDocumentsDirectory();
               final fileName =
-                  'activation_${DateTime.now().millisecondsSinceEpoch}${p.extension(sourcePath)}';
+                  'activation_${DateTime.now().millisecondsSinceEpoch}.png';
               final destPath = p.join(appDir.path, fileName);
 
               final bytes = await File(sourcePath).readAsBytes();
-              final image = img.decodeImage(bytes);
+              final pngBytes = await compute(_processActivationImage, bytes);
 
-              if (image != null) {
-                img.Image resized;
-                if (image.width > image.height) {
-                  resized = img.copyResize(image, width: 200);
-                } else {
-                  resized = img.copyResize(image, height: 200);
-                }
-
-                final pngBytes = img.encodePng(resized);
-                final destFile = File(
-                  destPath.replaceAll(p.extension(destPath), '.png'),
-                );
+              if (pngBytes != null) {
+                final destFile = File(destPath);
                 await destFile.writeAsBytes(pngBytes);
 
                 setState(() {
