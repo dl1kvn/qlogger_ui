@@ -112,6 +112,8 @@ void _showInfoLineSettings(BuildContext context) {
             }).toList(),
           ),
           const SizedBox(height: 12),
+          const Divider(),
+          const SizedBox(height: 12),
           Obx(
             () => GestureDetector(
               onTap: () {
@@ -126,11 +128,25 @@ void _showInfoLineSettings(BuildContext context) {
                         : Icons.check_box_outline_blank,
                     size: 20,
                   ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'cw - send activation type \n eg 599 IOTA EU123',
-                      style: TextStyle(fontSize: 12),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: RichText(
+                      text: const TextSpan(
+                        style: TextStyle(fontSize: 12, color: Colors.black87),
+                        children: [
+                          TextSpan(
+                            text: 'cw - send activation type \n eg 599 ',
+                          ),
+                          TextSpan(
+                            text: 'IOTA',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
+                          ),
+                          TextSpan(text: ' EU123'),
+                        ],
+                      ),
                     ),
                   ),
                 ],
