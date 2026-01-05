@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:geolocator/geolocator.dart';
-import '../data/satellites.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../data/cqzones.dart';
 import '../data/ituzones.dart';
 import '../data/models/qso_model.dart';
@@ -41,7 +41,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   final bluetoothConnected = false.obs;
   final statusText = ''.obs;
   final currentUtcTime = ''.obs;
+  final hasInternet = false.obs;
   Timer? _utcTimer;
+  Timer? _internetTimer;
   Timer? _workedBeforeDebounce;
 
   // Worked before indicator
@@ -134,7 +136,14 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   }
 
   static const _defaultBands = ['3.5', '7', '10', '14', '21', '28'];
-  final satellites = satelliteList;
+
+  List<String> get satellites {
+    final dbSatellites = _dbController.satelliteList
+        .where((s) => s.isActive)
+        .map((s) => s.name)
+        .toList();
+    return ['no sat', ...dbSatellites];
+  }
 
   List<String> get myCallsigns => _dbController.callsignList.map((c) => c.callsign).toList();
 
@@ -352,6 +361,18 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   /// Use German keyboard layout (Y/Z swapped)
   final useGermanKeyboard = false.obs;
 
+  /// Stay awake / keep screen on
+  final stayAwake = false.obs;
+
+  void toggleStayAwake() {
+    stayAwake.value = !stayAwake.value;
+    if (stayAwake.value) {
+      WakelockPlus.enable();
+    } else {
+      WakelockPlus.disable();
+    }
+  }
+
   void _loadContestMode() {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) {
@@ -486,7 +507,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _updateDateTime();
     _updateUtcTime();
+    _checkInternet();
     _utcTimer = Timer.periodic(const Duration(seconds: 1), (_) => _updateUtcTime());
+    _internetTimer = Timer.periodic(const Duration(seconds: 10), (_) => _checkInternet());
     _initSelectedCallsign();
     _loadSavedLocator();
     ever(_dbController.callsignList, (_) => _initSelectedCallsign());
@@ -531,7 +554,11 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
 
   void _updateUtcTime() {
     final now = DateTime.now().toUtc();
-    currentUtcTime.value = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}UTC';
+    currentUtcTime.value = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}utc';
+  }
+
+  Future<void> _checkInternet() async {
+    hasInternet.value = await ConnectivityService.hasInternetConnection();
   }
 
   void _loadSavedLocator() {
@@ -1168,6 +1195,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   void onClose() {
     WidgetsBinding.instance.removeObserver(this);
     _utcTimer?.cancel();
+    _internetTimer?.cancel();
     _workedBeforeDebounce?.cancel();
     callsignController.dispose();
     rstInController.dispose();

@@ -4,6 +4,8 @@ import '../data/models/qso_model.dart';
 import '../data/models/callsign_model.dart';
 import '../data/models/activation_model.dart';
 import '../data/models/export_setting_model.dart';
+import '../data/models/satellite_model.dart';
+import '../data/models/activation_image_model.dart';
 
 class DatabaseController extends GetxController {
   final DatabaseHelper _db = DatabaseHelper();
@@ -12,6 +14,7 @@ class DatabaseController extends GetxController {
   final RxList<CallsignModel> callsignList = <CallsignModel>[].obs;
   final RxList<ActivationModel> activationList = <ActivationModel>[].obs;
   final RxList<ExportSettingModel> exportSettingList = <ExportSettingModel>[].obs;
+  final RxList<SatelliteModel> satelliteList = <SatelliteModel>[].obs;
   final RxBool isLoading = false.obs;
   final RxString error = ''.obs;
 
@@ -27,6 +30,7 @@ class DatabaseController extends GetxController {
       loadCallsigns(),
       loadActivations(),
       loadExportSettings(),
+      loadSatellites(),
     ]);
   }
 
@@ -396,6 +400,129 @@ class DatabaseController extends GetxController {
       return false;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  // ==================== SATELLITE OPERATIONS ====================
+
+  Future<void> loadSatellites() async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+      final satellites = await _db.getAllSatellites();
+      satelliteList.assignAll(satellites);
+    } catch (e) {
+      error.value = 'Failed to load satellites: $e';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> addSatellite(SatelliteModel satellite) async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+      final id = await _db.insertSatellite(satellite);
+      final newSatellite = satellite.copyWith(id: id);
+      satelliteList.add(newSatellite);
+      return true;
+    } catch (e) {
+      error.value = 'Failed to add satellite: $e';
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> updateSatellite(SatelliteModel satellite) async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+      await _db.updateSatellite(satellite);
+      final index = satelliteList.indexWhere((s) => s.id == satellite.id);
+      if (index != -1) {
+        satelliteList[index] = satellite;
+      }
+      return true;
+    } catch (e) {
+      error.value = 'Failed to update satellite: $e';
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> deleteSatellite(int id) async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+      await _db.deleteSatellite(id);
+      satelliteList.removeWhere((s) => s.id == id);
+      return true;
+    } catch (e) {
+      error.value = 'Failed to delete satellite: $e';
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // ==================== ACTIVATION IMAGE OPERATIONS ====================
+
+  Future<List<ActivationImageModel>> getActivationImages(int activationId) async {
+    try {
+      return await _db.getActivationImages(activationId);
+    } catch (e) {
+      error.value = 'Failed to load activation images: $e';
+      return [];
+    }
+  }
+
+  Future<int> getActivationImageCount(int activationId) async {
+    try {
+      return await _db.getActivationImageCount(activationId);
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Future<ActivationImageModel?> addActivationImage(ActivationImageModel image) async {
+    try {
+      final id = await _db.insertActivationImage(image);
+      return image.copyWith(id: id);
+    } catch (e) {
+      error.value = 'Failed to add activation image: $e';
+      return null;
+    }
+  }
+
+  Future<bool> updateActivationImage(ActivationImageModel image) async {
+    try {
+      await _db.updateActivationImage(image);
+      return true;
+    } catch (e) {
+      error.value = 'Failed to update activation image: $e';
+      return false;
+    }
+  }
+
+  Future<bool> deleteActivationImage(int id) async {
+    try {
+      await _db.deleteActivationImage(id);
+      return true;
+    } catch (e) {
+      error.value = 'Failed to delete activation image: $e';
+      return false;
+    }
+  }
+
+  Future<bool> deleteActivationImages(int activationId) async {
+    try {
+      await _db.deleteActivationImages(activationId);
+      return true;
+    } catch (e) {
+      error.value = 'Failed to delete activation images: $e';
+      return false;
     }
   }
 }

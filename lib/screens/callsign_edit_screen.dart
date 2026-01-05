@@ -70,7 +70,9 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
     _lotwkeyController = TextEditingController(text: c?.lotwkey ?? '');
     _ituController = TextEditingController(text: c?.itu ?? '');
     _cqzoneController = TextEditingController(text: c?.cqzone ?? '');
-    _cwCustomTextController = TextEditingController(text: c?.cwCustomText ?? '');
+    _cwCustomTextController = TextEditingController(
+      text: c?.cwCustomText ?? '',
+    );
     _cwCqTextController = TextEditingController(text: c?.cwCqText ?? '');
     _useClublog = (c?.useclublog ?? 0) == 1;
     _useEqsl = (c?.useeqsl ?? 0) == 1;
@@ -88,11 +90,13 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
     _useCqzones = (c?.useCqzones ?? 0) == 1;
     _useItuzones = (c?.useItuzones ?? 0) == 1;
     _useGermanKeyboard = (c?.useGermanKeyboard ?? 0) == 1;
-    _buttonLayoutRows = c?.buttonLayoutRows ?? [
-      ['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM'],
-      ['SEND', 'CLR', 'SAVE'],
-      [],
-    ];
+    _buttonLayoutRows =
+        c?.buttonLayoutRows ??
+        [
+          ['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM'],
+          ['SEND', 'CLR', 'SAVE'],
+          [],
+        ];
   }
 
   @override
@@ -258,16 +262,6 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
             ),
             const SizedBox(height: 16),
             TextFormField(
-              controller: _cwCustomTextController,
-              decoration: const InputDecoration(
-                labelText: 'Custom CW Button Text',
-                hintText: 'e.g. TU 73 GL',
-                border: OutlineInputBorder(),
-              ),
-              textCapitalization: TextCapitalization.characters,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
               controller: _cwCqTextController,
               decoration: const InputDecoration(
                 labelText: 'Custom CQ Button Text',
@@ -276,8 +270,21 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               ),
               textCapitalization: TextCapitalization.characters,
             ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _cwCustomTextController,
+              decoration: const InputDecoration(
+                labelText: 'Custom CW Button Text',
+                hintText: 'e.g. TU 73 GL',
+                border: OutlineInputBorder(),
+              ),
+              textCapitalization: TextCapitalization.characters,
+            ),
             const SizedBox(height: 24),
-            Text('Modes (drag to reorder)', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Modes (drag to reorder)',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             _buildReorderableChips(
               items: _selectedModes,
@@ -292,7 +299,10 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               onToggle: _toggleMode,
             ),
             const SizedBox(height: 24),
-            Text('Bands (drag to reorder)', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Bands (drag to reorder)',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             _buildReorderableChips(
               items: _selectedBands,
@@ -308,11 +318,16 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               suffix: ' MHz',
             ),
             const SizedBox(height: 24),
-            Text('General Options', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'General Options',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             CheckboxListTile(
               title: const Text('Single RST'),
-              subtitle: const Text('Select only the signal strength digit when clicking IN/OUT'),
+              subtitle: const Text(
+                'Select only the signal strength digit when clicking IN/OUT',
+              ),
               value: _singleRst,
               onChanged: (v) => setState(() => _singleRst = v ?? false),
               controlAffinity: ListTileControlAffinity.leading,
@@ -320,7 +335,9 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
             ),
             CheckboxListTile(
               title: const Text('Use Spacebar Toggle'),
-              subtitle: const Text('Spacebar in Callsign → NR/INFO, Spacebar in NR/INFO → Callsign'),
+              subtitle: const Text(
+                'Spacebar in Callsign → NR/INFO, Spacebar in NR/INFO → Callsign',
+              ),
               value: _useSpacebarToggle,
               onChanged: (v) => setState(() => _useSpacebarToggle = v ?? false),
               controlAffinity: ListTileControlAffinity.leading,
@@ -329,15 +346,20 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
             if (_useSpacebarToggle)
               CheckboxListTile(
                 title: const Text('Toggle Second Field'),
-                subtitle: const Text('Spacebar in NR/INFO → Xtra1, Spacebar in Xtra1 → Callsign'),
+                subtitle: const Text(
+                  'Spacebar in NR/INFO → Xtra1, Spacebar in Xtra1 → Callsign',
+                ),
                 value: _toggleSecondField,
-                onChanged: (v) => setState(() => _toggleSecondField = v ?? false),
+                onChanged: (v) =>
+                    setState(() => _toggleSecondField = v ?? false),
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
               ),
             CheckboxListTile(
               title: const Text('Use CQ Zones'),
-              subtitle: const Text('Auto-fill CQ zone in NR/INFO based on callsign prefix'),
+              subtitle: const Text(
+                'Auto-fill CQ zone in NR/INFO based on callsign prefix',
+              ),
               value: _useCqzones,
               onChanged: (v) => setState(() {
                 if (v == true) {
@@ -352,7 +374,9 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
             ),
             CheckboxListTile(
               title: const Text('Use ITU Zones'),
-              subtitle: const Text('Auto-fill ITU zone in NR/INFO based on callsign prefix'),
+              subtitle: const Text(
+                'Auto-fill ITU zone in NR/INFO based on callsign prefix',
+              ),
               value: _useItuzones,
               onChanged: (v) => setState(() {
                 if (v == true) {
@@ -408,7 +432,10 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            Text('CW Button Layout (drag to reorder)', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'CW Button Layout (drag to reorder)',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             _buildButtonLayoutEditor(),
             const SizedBox(height: 24),
@@ -498,17 +525,17 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   'Key saved in store',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.green,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Colors.green),
                 ),
               ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () async {
-                final result = await Get.to<LotwSetupResult>(() => LotwSetupScreen(
-                  callsign: _callsignController.text,
-                ));
+                final result = await Get.to<LotwSetupResult>(
+                  () => LotwSetupScreen(callsign: _callsignController.text),
+                );
                 if (result != null) {
                   setState(() {
                     _lotwcertController.text = result.certificate;
@@ -556,7 +583,9 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
     required void Function(String) onToggle,
     String suffix = '',
   }) {
-    final unselectedItems = allItems.where((item) => !items.contains(item)).toList();
+    final unselectedItems = allItems
+        .where((item) => !items.contains(item))
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -621,8 +650,8 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
       'CUSTOM': _cwCustomTextController.text.isEmpty
           ? 'CUSTOM'
           : _cwCustomTextController.text.length > 6
-              ? '${_cwCustomTextController.text.substring(0, 6)}…'
-              : _cwCustomTextController.text,
+          ? '${_cwCustomTextController.text.substring(0, 6)}…'
+          : _cwCustomTextController.text,
       'SEND': 'SEND',
       'CLR': 'CLR',
       'SAVE': 'SAVE',
@@ -661,7 +690,9 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               margin: const EdgeInsets.symmetric(vertical: 4),
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isHovering ? Colors.blue.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                color: isHovering
+                    ? Colors.blue.withOpacity(0.1)
+                    : Colors.grey.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: isHovering ? Colors.blue : Colors.grey.shade300,
@@ -673,10 +704,7 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
                 children: [
                   Text(
                     'Row ${rowIndex + 1}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -690,31 +718,49 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
                             elevation: 4,
                             borderRadius: BorderRadius.circular(4),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
                                 color: buttonColors[buttonId] ?? Colors.grey,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
                                 buttonLabels[buttonId] ?? buttonId,
-                                style: const TextStyle(color: Colors.white, fontSize: 12),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
                           ),
                           childWhenDragging: Opacity(
                             opacity: 0.3,
                             child: Chip(
-                              label: Text(buttonLabels[buttonId] ?? buttonId, style: const TextStyle(fontSize: 11)),
-                              backgroundColor: buttonColors[buttonId]?.withOpacity(0.3),
+                              label: Text(
+                                buttonLabels[buttonId] ?? buttonId,
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                              backgroundColor: buttonColors[buttonId]
+                                  ?.withOpacity(0.3),
                               padding: EdgeInsets.zero,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
                             ),
                           ),
                           child: Chip(
-                            label: Text(buttonLabels[buttonId] ?? buttonId, style: const TextStyle(fontSize: 11, color: Colors.white)),
+                            label: Text(
+                              buttonLabels[buttonId] ?? buttonId,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.white,
+                              ),
+                            ),
                             backgroundColor: buttonColors[buttonId],
                             padding: EdgeInsets.zero,
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
                           ),
                         );
                       }).toList(),

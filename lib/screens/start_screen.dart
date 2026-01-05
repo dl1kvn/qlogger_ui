@@ -76,7 +76,7 @@ Widget _appBarIconButton({
   return GestureDetector(
     onTap: onTap,
     child: Container(
-      margin: const EdgeInsets.symmetric(horizontal: 3),
+      margin: const EdgeInsets.symmetric(horizontal: 2),
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.black, width: 1),
@@ -99,7 +99,7 @@ class StartScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 36,
-        title: qloggerSpeedWordmark(fontSize: 14),
+        title: qloggerSpeedWordmark(fontSize: 18),
         actions: [
           // Bluetooth status icon
           Obx(
@@ -119,14 +119,6 @@ class StartScreen extends StatelessWidget {
               icon: Icons.access_time,
               color: c.hideDateTime.value ? Colors.red : Colors.green,
               onTap: c.toggleHideDateTime,
-            ),
-          ),
-          // Satellite toggle icon
-          Obx(
-            () => _appBarIconButton(
-              icon: Icons.satellite_alt,
-              color: c.showSatellite.value ? Colors.green : Colors.grey,
-              onTap: c.toggleShowSatellite,
             ),
           ),
           // Contest mode toggle icon
@@ -155,14 +147,32 @@ class StartScreen extends StatelessWidget {
               onTap: themeController.toggleTheme,
             ),
           ),
+          // Stay awake toggle icon
+          Obx(
+            () => _appBarIconButton(
+              icon: Icons.coffee,
+              color: c.stayAwake.value ? Colors.green : Colors.grey,
+              onTap: c.toggleStayAwake,
+            ),
+          ),
           Obx(
             () => Padding(
-              padding: const EdgeInsets.only(left: 6, right: 12),
+              padding: const EdgeInsets.only(left: 6, right: 4),
               child: Center(
                 child: Text(
                   c.currentUtcTime.value,
                   style: const TextStyle(fontSize: 12),
                 ),
+              ),
+            ),
+          ),
+          Obx(
+            () => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(
+                c.hasInternet.value ? Icons.wifi : Icons.wifi_off,
+                size: 16,
+                color: c.hasInternet.value ? Colors.green : Colors.red,
               ),
             ),
           ),

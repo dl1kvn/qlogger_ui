@@ -633,9 +633,21 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
                                     Icon(ActivationModel.getIcon(a.type), size: 16, color: ActivationModel.getColor(a.type)),
                                     const SizedBox(width: 4),
                                     Expanded(
-                                      child: Text(
-                                        a.reference,
-                                        overflow: TextOverflow.ellipsis,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            a.reference,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (a.title.isNotEmpty)
+                                            Text(
+                                              a.title,
+                                              style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                        ],
                                       ),
                                     ),
                                     if (a.imagePath != null) ...[
@@ -1285,9 +1297,9 @@ class _QsoListTile extends StatelessWidget {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(a.reference, overflow: TextOverflow.ellipsis),
-                                    if (a.description.isNotEmpty)
+                                    if (a.title.isNotEmpty)
                                       Text(
-                                        a.description,
+                                        a.title,
                                         style: const TextStyle(fontSize: 10, color: Colors.grey),
                                         overflow: TextOverflow.ellipsis,
                                       ),

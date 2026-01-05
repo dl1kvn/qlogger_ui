@@ -7,13 +7,15 @@ import '../models/iota_group_model.dart';
 import '../models/iota_island_model.dart';
 import '../models/pota_park_model.dart';
 import '../models/export_setting_model.dart';
+import '../models/satellite_model.dart';
+import '../models/activation_image_model.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
   static const String _dbName = 'qlogger.db';
-  static const int _dbVersion = 28;
+  static const int _dbVersion = 33;
 
   static const String qsoTable = 'qsoTable';
   static const String allsignTable = 'allsignTable';
@@ -22,6 +24,8 @@ class DatabaseHelper {
   static const String iotaIslandTable = 'iotaIslandTable';
   static const String potaParkTable = 'potaParkTable';
   static const String exportSettingTable = 'exportSettingTable';
+  static const String satelliteTable = 'satelliteTable';
+  static const String activationImageTable = 'activationImageTable';
 
   DatabaseHelper._internal();
 
@@ -119,9 +123,11 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         type TEXT,
         reference TEXT,
+        title TEXT DEFAULT '',
         description TEXT DEFAULT '',
         image_path TEXT,
-        contest_id TEXT DEFAULT ''
+        contest_id TEXT DEFAULT '',
+        show_in_dropdown INTEGER DEFAULT 1
       )
     ''');
 
@@ -171,6 +177,26 @@ class DatabaseHelper {
         band_format TEXT DEFAULT 'band',
         fields TEXT,
         field_aliases TEXT DEFAULT '{}'
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE $satelliteTable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        description TEXT DEFAULT '',
+        is_active INTEGER DEFAULT 1,
+        sort_order INTEGER DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE $activationImageTable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        activation_id INTEGER NOT NULL,
+        image_path TEXT NOT NULL,
+        sort_order INTEGER DEFAULT 0,
+        FOREIGN KEY (activation_id) REFERENCES $activationTable (id) ON DELETE CASCADE
       )
     ''');
   }
@@ -316,6 +342,36 @@ class DatabaseHelper {
     if (oldVersion < 28) {
       await db.execute("ALTER TABLE $activationTable ADD COLUMN contest_id TEXT DEFAULT ''");
       await db.execute("ALTER TABLE $qsoTable ADD COLUMN contest_id TEXT DEFAULT ''");
+    }
+    if (oldVersion < 29) {
+      await db.execute('''
+        CREATE TABLE $satelliteTable (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT,
+          description TEXT DEFAULT ''
+        )
+      ''');
+    }
+    if (oldVersion < 30) {
+      await db.execute("ALTER TABLE $satelliteTable ADD COLUMN is_active INTEGER DEFAULT 1");
+      await db.execute("ALTER TABLE $satelliteTable ADD COLUMN sort_order INTEGER DEFAULT 0");
+    }
+    if (oldVersion < 31) {
+      await db.execute('''
+        CREATE TABLE $activationImageTable (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          activation_id INTEGER NOT NULL,
+          image_path TEXT NOT NULL,
+          sort_order INTEGER DEFAULT 0,
+          FOREIGN KEY (activation_id) REFERENCES $activationTable (id) ON DELETE CASCADE
+        )
+      ''');
+    }
+    if (oldVersion < 32) {
+      await db.execute("ALTER TABLE $activationTable ADD COLUMN title TEXT DEFAULT ''");
+    }
+    if (oldVersion < 33) {
+      await db.execute("ALTER TABLE $activationTable ADD COLUMN show_in_dropdown INTEGER DEFAULT 1");
     }
   }
 
@@ -770,6 +826,106 @@ class DatabaseHelper {
       exportSettingTable,
       where: 'id = ?',
       whereArgs: [id],
+    );
+  }
+
+  // ==================== SATELLITE CRUD ====================
+
+  Future<int> insertSatellite(SatelliteModel satellite) async {
+    final db = await database;
+    return await db.insert(satelliteTable, satellite.toMap());
+  }
+
+  Future<List<SatelliteModel>> getAllSatellites() async {
+    final db = await database;
+    final maps = await db.query(satelliteTable, orderBy: 'is_active DESC, sort_order ASC, name ASC');
+    return maps.map((map) => SatelliteModel.fromMap(map)).toList();
+  }
+
+  Future<SatelliteModel?> getSatelliteById(int id) async {
+    final db = await database;
+    final maps = await db.query(
+      satelliteTable,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (maps.isNotEmpty) {
+      return SatelliteModel.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  Future<int> updateSatellite(SatelliteModel satellite) async {
+    final db = await database;
+    return await db.update(
+      satelliteTable,
+      satellite.toMap(),
+      where: 'id = ?',
+      whereArgs: [satellite.id],
+    );
+  }
+
+  Future<int> deleteSatellite(int id) async {
+    final db = await database;
+    return await db.delete(
+      satelliteTable,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // ==================== ACTIVATION IMAGE CRUD ====================
+
+  Future<int> insertActivationImage(ActivationImageModel image) async {
+    final db = await database;
+    return await db.insert(activationImageTable, image.toMap());
+  }
+
+  Future<List<ActivationImageModel>> getActivationImages(int activationId) async {
+    final db = await database;
+    final maps = await db.query(
+      activationImageTable,
+      where: 'activation_id = ?',
+      whereArgs: [activationId],
+      orderBy: 'sort_order ASC',
+    );
+    return maps.map((map) => ActivationImageModel.fromMap(map)).toList();
+  }
+
+  Future<int> getActivationImageCount(int activationId) async {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM $activationImageTable WHERE activation_id = ?',
+      [activationId],
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<int> updateActivationImage(ActivationImageModel image) async {
+    final db = await database;
+    return await db.update(
+      activationImageTable,
+      image.toMap(),
+      where: 'id = ?',
+      whereArgs: [image.id],
+    );
+  }
+
+  Future<int> deleteActivationImage(int id) async {
+    final db = await database;
+    return await db.delete(
+      activationImageTable,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> deleteActivationImages(int activationId) async {
+    final db = await database;
+    return await db.delete(
+      activationImageTable,
+      where: 'activation_id = ?',
+      whereArgs: [activationId],
     );
   }
 

@@ -45,7 +45,7 @@ void _showInfoLineSettings(BuildContext context) {
 
   Get.dialog(
     AlertDialog(
-      title: const Text('Info Line Design', style: TextStyle(fontSize: 14)),
+      title: const Text('Info Line Setup', style: TextStyle(fontSize: 14)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,6 +110,32 @@ void _showInfoLineSettings(BuildContext context) {
                 ),
               );
             }).toList(),
+          ),
+          const SizedBox(height: 12),
+          Obx(
+            () => GestureDetector(
+              onTap: () {
+                _showRefPrefix.value = !_showRefPrefix.value;
+                _storage.write('show_ref_prefix', _showRefPrefix.value);
+              },
+              child: Row(
+                children: [
+                  Icon(
+                    _showRefPrefix.value
+                        ? Icons.check_box
+                        : Icons.check_box_outline_blank,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'cw - send activation type \n eg 599 IOTA EU123',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -364,11 +390,14 @@ class QsoForm extends StatelessWidget {
                           padding: P.field,
                           child: Obx(() {
                             final dbController = Get.find<DatabaseController>();
-                            final activations = dbController.activationList;
+                            final activations = dbController.activationList
+                                .where((a) => a.showInDropdown)
+                                .toList();
                             return DropdownButtonFormField<int?>(
                               value: c.selectedActivationId.value,
                               decoration: InputStyles.dropdown(''),
                               isExpanded: true,
+                              itemHeight: 56,
                               items: [
                                 const DropdownMenuItem<int?>(
                                   value: null,
@@ -379,22 +408,33 @@ class QsoForm extends StatelessWidget {
                                     value: a.id,
                                     child: Row(
                                       children: [
-                                        Icon(ActivationModel.getIcon(a.type), size: 16, color: ActivationModel.getColor(a.type)),
+                                        Icon(
+                                          ActivationModel.getIcon(a.type),
+                                          size: 16,
+                                          color: ActivationModel.getColor(
+                                            a.type,
+                                          ),
+                                        ),
                                         const SizedBox(width: 4),
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Text(
                                                 a.reference,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
-                                              if (a.description.isNotEmpty)
+                                              if (a.title.isNotEmpty)
                                                 Text(
-                                                  a.description,
-                                                  style: const TextStyle(fontSize: 10, color: Colors.grey),
-                                                  overflow: TextOverflow.ellipsis,
+                                                  a.title,
+                                                  style: const TextStyle(
+                                                    fontSize: 10,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                             ],
                                           ),
@@ -402,13 +442,16 @@ class QsoForm extends StatelessWidget {
                                         if (a.imagePath != null) ...[
                                           const SizedBox(width: 4),
                                           ClipRRect(
-                                            borderRadius: BorderRadius.circular(3),
+                                            borderRadius: BorderRadius.circular(
+                                              3,
+                                            ),
                                             child: Image.file(
                                               File(a.imagePath!),
                                               width: 20,
                                               height: 20,
                                               fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                              errorBuilder: (_, __, ___) =>
+                                                  const SizedBox.shrink(),
                                             ),
                                           ),
                                         ],
@@ -481,7 +524,8 @@ class QsoForm extends StatelessWidget {
                                                                 );
                                                         if (activation !=
                                                             null) {
-                                                          if (_showRefPrefix.value) {
+                                                          if (_showRefPrefix
+                                                              .value) {
                                                             activationRef =
                                                                 ' ${activation.type.toUpperCase()} ${activation.reference.replaceAll('-', '')}';
                                                           } else {
@@ -548,18 +592,6 @@ class QsoForm extends StatelessWidget {
                                 ),
                           ),
                         ),
-                        Obx(() => GestureDetector(
-                          onTap: () {
-                            _showRefPrefix.value = !_showRefPrefix.value;
-                            _storage.write('show_ref_prefix', _showRefPrefix.value);
-                          },
-                          child: Icon(
-                            _showRefPrefix.value ? Icons.check_box : Icons.check_box_outline_blank,
-                            size: 18,
-                            color: textColor.withOpacity(0.6),
-                          ),
-                        )),
-                        const SizedBox(width: 4),
                         GestureDetector(
                           onTap: () => _showInfoLineSettings(context),
                           child: Icon(
@@ -730,94 +762,84 @@ class QsoForm extends StatelessWidget {
                 }),
                 SizedBox(height: P.lineSpacing),
                 // CW Checkbox row (only visible in CW mode, hidden in contest mode)
-                Obx(
-                  () {
-                    if (c.selectedMode.value != 'CW' || c.contestMode.value) {
-                      return const SizedBox.shrink();
-                    }
-                    final isDark = Get.find<ThemeController>().isDarkMode.value;
-                    return Column(
-                      children: [
-                        Container(
-                          padding: P.fieldBig,
-                          color: isDark ? Colors.black : AppColors.surfaceLight,
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: CheckboxRow(
-                                      checkboxes: [
-                                        LabeledCheckbox(
-                                          label: '0/t',
-                                          value: c.zeroIsT,
-                                        ),
-                                        LabeledCheckbox(
-                                          label: '9/n',
-                                          value: c.nineIsN,
-                                        ),
-                                        LabeledCheckbox(
-                                          label: 'K',
-                                          value: c.sendK,
-                                        ),
-                                        LabeledCheckbox(
-                                          label: 'BK',
-                                          value: c.sendBK,
-                                        ),
-                                      ],
-                                    ),
+                Obx(() {
+                  if (c.selectedMode.value != 'CW' || c.contestMode.value) {
+                    return const SizedBox.shrink();
+                  }
+                  final isDark = Get.find<ThemeController>().isDarkMode.value;
+                  return Column(
+                    children: [
+                      Container(
+                        padding: P.fieldBig,
+                        color: isDark ? Colors.black : AppColors.surfaceLight,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: CheckboxRow(
+                                checkboxes: [
+                                  LabeledCheckbox(
+                                    label: '0/t',
+                                    value: c.zeroIsT,
                                   ),
-                                  SizedBox(
-                                    width: 46,
-                                    height: 28,
-                                    child: TextFormField(
-                                      controller: c.cwPreController,
-                                      textCapitalization:
-                                          TextCapitalization.characters,
-                                      style: const TextStyle(fontSize: 11),
-                                      decoration: const InputDecoration(
-                                        labelText: 'pre',
-                                        labelStyle: TextStyle(fontSize: 9),
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 4,
-                                          vertical: 4,
-                                        ),
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      onChanged: (v) =>
-                                          c.saveCwPre(v.toUpperCase()),
-                                    ),
+                                  LabeledCheckbox(
+                                    label: '9/n',
+                                    value: c.nineIsN,
                                   ),
-                                  const SizedBox(width: 4),
-                                  SizedBox(
-                                    width: 46,
-                                    height: 28,
-                                    child: TextFormField(
-                                      controller: c.cwPostController,
-                                      textCapitalization:
-                                          TextCapitalization.characters,
-                                      style: const TextStyle(fontSize: 11),
-                                      decoration: const InputDecoration(
-                                        labelText: 'post',
-                                        labelStyle: TextStyle(fontSize: 9),
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 4,
-                                          vertical: 4,
-                                        ),
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      onChanged: (v) =>
-                                          c.saveCwPost(v.toUpperCase()),
-                                    ),
-                                  ),
+                                  LabeledCheckbox(label: 'K', value: c.sendK),
+                                  LabeledCheckbox(label: 'BK', value: c.sendBK),
                                 ],
                               ),
                             ),
-                        SizedBox(height: P.lineSpacing),
-                      ],
-                    );
-                  },
-                ),
+                            SizedBox(
+                              width: 46,
+                              height: 28,
+                              child: TextFormField(
+                                controller: c.cwPreController,
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                style: const TextStyle(fontSize: 11),
+                                decoration: const InputDecoration(
+                                  labelText: 'pre',
+                                  labelStyle: TextStyle(fontSize: 9),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 4,
+                                  ),
+                                  border: OutlineInputBorder(),
+                                ),
+                                onChanged: (v) => c.saveCwPre(v.toUpperCase()),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            SizedBox(
+                              width: 46,
+                              height: 28,
+                              child: TextFormField(
+                                controller: c.cwPostController,
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                style: const TextStyle(fontSize: 11),
+                                decoration: const InputDecoration(
+                                  labelText: 'post',
+                                  labelStyle: TextStyle(fontSize: 9),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 4,
+                                  ),
+                                  border: OutlineInputBorder(),
+                                ),
+                                onChanged: (v) => c.saveCwPost(v.toUpperCase()),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: P.lineSpacing),
+                    ],
+                  );
+                }),
                 // Row 1: Icon, Callsign, RST IN, RST OUT
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -892,8 +914,12 @@ class QsoForm extends StatelessWidget {
                                     fillColor: Colors.white,
                                   ),
                             style: c.workedBefore.value
-                                ? FormStyles.callsign(width).copyWith(color: Colors.white)
-                                : FormStyles.callsign(width).copyWith(color: Colors.black),
+                                ? FormStyles.callsign(
+                                    width,
+                                  ).copyWith(color: Colors.white)
+                                : FormStyles.callsign(
+                                    width,
+                                  ).copyWith(color: Colors.black),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Required';
@@ -1178,7 +1204,14 @@ class QsoForm extends StatelessWidget {
                     if (buttonId == 'CUSTOM' && c.cwCustomText.value.isEmpty) {
                       return false;
                     }
-                    if (['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM', 'SEND'].contains(buttonId)) {
+                    if ([
+                      'CQ',
+                      'MY',
+                      'CALL',
+                      'RPT',
+                      'CUSTOM',
+                      'SEND',
+                    ].contains(buttonId)) {
                       if (!isCwMode || !isConnected) return false;
                     }
                     return true;
@@ -1191,12 +1224,17 @@ class QsoForm extends StatelessWidget {
                       if (row.isEmpty) return const SizedBox.shrink();
 
                       // Check if any button in this row is visible
-                      final hasVisibleButton = row.any((buttonId) => isButtonVisible(buttonId));
+                      final hasVisibleButton = row.any(
+                        (buttonId) => isButtonVisible(buttonId),
+                      );
                       if (!hasVisibleButton) return const SizedBox.shrink();
 
                       return Column(
                         children: [
-                          if (rowIndex > 0 && rows.sublist(0, rowIndex).any((r) => r.any((b) => isButtonVisible(b))))
+                          if (rowIndex > 0 &&
+                              rows
+                                  .sublist(0, rowIndex)
+                                  .any((r) => r.any((b) => isButtonVisible(b))))
                             const SizedBox(height: 2),
                           Row(
                             children: row.map((buttonId) {

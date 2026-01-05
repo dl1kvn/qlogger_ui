@@ -13,27 +13,35 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  late final AnimationController c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 500))
-        ..forward();
+  late final AnimationController c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 500),
+  )..forward();
 
   String? _bgImagePath;
+  String _splashText = 'Built for operators';
 
   @override
   void initState() {
     super.initState();
-    _loadBgImage();
-    Future.delayed(const Duration(milliseconds: 2000), () {
+    _loadSettings();
+    Future.delayed(const Duration(milliseconds: 3000), () {
       Get.off(() => const MainShell());
     });
   }
 
-  void _loadBgImage() {
+  void _loadSettings() {
     final storage = GetStorage();
     final path = storage.read<String>('splash_bg_path');
     if (path != null && File(path).existsSync()) {
       setState(() {
         _bgImagePath = path;
+      });
+    }
+    final text = storage.read<String>('splash_text');
+    if (text != null && text.isNotEmpty) {
+      setState(() {
+        _splashText = text;
       });
     }
   }
@@ -51,55 +59,48 @@ class _SplashScreenState extends State<SplashScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background image: custom or default
-          if (_bgImagePath != null)
-            Image.file(
-              File(_bgImagePath!),
-              fit: BoxFit.cover,
-            )
-          else
-            Image.asset(
-              'assets/images/splash.png',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const SizedBox(),
-            ),
+          // Background image: custom or default with zoom animation
+          AnimatedBuilder(
+            animation: c,
+            builder: (context, child) {
+              final scale = 1.0 + (0.33 * c.value);
+              return Transform.scale(scale: scale, child: child);
+            },
+            child: _bgImagePath != null
+                ? Image.file(File(_bgImagePath!), fit: BoxFit.cover)
+                : Image.asset(
+                    'assets/images/splash.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox(),
+                  ),
+          ),
           Center(
             child: FadeTransition(
               opacity: c,
               child: ScaleTransition(
-                scale: Tween(begin: 0.96, end: 1.0).animate(c),
-                child: const Column(
+                scale: Tween(begin: 0.90, end: 1.0).animate(c),
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
+                    const Text(
                       'QLOGGER',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 28,
+                        fontSize: 33,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 2,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black,
-                            blurRadius: 10,
-                          ),
-                        ],
+                        shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
-                      'Built for operators',
-                      style: TextStyle(
+                      _splashText,
+                      style: const TextStyle(
                         color: Colors.white70,
-                        fontSize: 14,
+                        fontSize: 20,
                         fontWeight: FontWeight.w400,
                         letterSpacing: 1,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black,
-                            blurRadius: 10,
-                          ),
-                        ],
+                        shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                       ),
                     ),
                   ],

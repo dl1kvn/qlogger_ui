@@ -4,17 +4,21 @@ class ActivationModel {
   int? id;
   String type; // pota, iota, gma, sota, cota, lighthouse, custom
   String reference;
+  String title;
   String description;
   String? imagePath;
   String contestId;
+  bool showInDropdown;
 
   ActivationModel({
     this.id,
     this.type = '',
     this.reference = '',
+    this.title = '',
     this.description = '',
     this.imagePath,
     this.contestId = '',
+    this.showInDropdown = true,
   });
 
   Map<String, dynamic> toMap() {
@@ -22,9 +26,11 @@ class ActivationModel {
       if (id != null) 'id': id,
       'type': type,
       'reference': reference,
+      'title': title,
       'description': description,
       'image_path': imagePath,
       'contest_id': contestId,
+      'show_in_dropdown': showInDropdown ? 1 : 0,
     };
   }
 
@@ -33,9 +39,11 @@ class ActivationModel {
       id: map['id'] as int?,
       type: map['type']?.toString() ?? '',
       reference: map['reference']?.toString() ?? '',
+      title: map['title']?.toString() ?? '',
       description: map['description']?.toString() ?? '',
       imagePath: map['image_path']?.toString(),
       contestId: map['contest_id']?.toString() ?? '',
+      showInDropdown: (map['show_in_dropdown'] as int?) != 0,
     );
   }
 
@@ -43,17 +51,21 @@ class ActivationModel {
     int? id,
     String? type,
     String? reference,
+    String? title,
     String? description,
     String? imagePath,
     String? contestId,
+    bool? showInDropdown,
   }) {
     return ActivationModel(
       id: id ?? this.id,
       type: type ?? this.type,
       reference: reference ?? this.reference,
+      title: title ?? this.title,
       description: description ?? this.description,
       imagePath: imagePath ?? this.imagePath,
       contestId: contestId ?? this.contestId,
+      showInDropdown: showInDropdown ?? this.showInDropdown,
     );
   }
 
