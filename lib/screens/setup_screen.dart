@@ -17,6 +17,7 @@ final simulationActive = (_simulationStorage.read<bool>('simulation_active') ?? 
 final simulationPaused = false.obs; // Paused state for QSO form toggle
 final simulationMinWpm = (_simulationStorage.read<double>('simulation_min_wpm') ?? 20.0).obs;
 final simulationMaxWpm = (_simulationStorage.read<double>('simulation_max_wpm') ?? 28.0).obs;
+final simulationCqWpm = (_simulationStorage.read<double>('simulation_cq_wpm') ?? 24.0).obs;
 final simulationGeneratedCallsign = ''.obs; // The random callsign generated during simulation
 
 class SetupScreen extends StatelessWidget {
@@ -196,12 +197,34 @@ class SetupScreen extends StatelessWidget {
               label: const Text('Simulation'),
             )),
             const SizedBox(height: 12),
-            // WPM Range Slider
+            // My CQ WPM Slider
             Obx(() => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'CW Speed: ${simulationMinWpm.value.round()} - ${simulationMaxWpm.value.round()} WPM',
+                  'My CQ Speed: ${simulationCqWpm.value.round()} WPM',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                Slider(
+                  value: simulationCqWpm.value,
+                  min: 18,
+                  max: 38,
+                  divisions: 20,
+                  label: simulationCqWpm.value.round().toString(),
+                  onChanged: (value) {
+                    simulationCqWpm.value = value;
+                    _simulationStorage.write('simulation_cq_wpm', value);
+                  },
+                ),
+              ],
+            )),
+            const SizedBox(height: 8),
+            // Answer WPM Range Slider
+            Obx(() => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Answer Speed: ${simulationMinWpm.value.round()} - ${simulationMaxWpm.value.round()} WPM',
                   style: const TextStyle(fontSize: 14),
                 ),
                 RangeSlider(

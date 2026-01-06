@@ -28,24 +28,140 @@ class MorseAudioService {
 
   // Morse code dictionary
   static const Map<String, String> _morseCode = {
-    'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
-    'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
-    'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.',
-    'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
-    'Y': '-.--', 'Z': '--..', '0': '-----', '1': '.----', '2': '..---',
-    '3': '...--', '4': '....-', '5': '.....', '6': '-....', '7': '--...',
-    '8': '---..', '9': '----.', '/': '-..-.', ' ': ' ',
+    'A': '.-',
+    'B': '-...',
+    'C': '-.-.',
+    'D': '-..',
+    'E': '.',
+    'F': '..-.',
+    'G': '--.',
+    'H': '....',
+    'I': '..',
+    'J': '.---',
+    'K': '-.-',
+    'L': '.-..',
+    'M': '--',
+    'N': '-.',
+    'O': '---',
+    'P': '.--.',
+    'Q': '--.-',
+    'R': '.-.',
+    'S': '...',
+    'T': '-',
+    'U': '..-',
+    'V': '...-',
+    'W': '.--',
+    'X': '-..-',
+    'Y': '-.--',
+    'Z': '--..',
+    '0': '-----',
+    '1': '.----',
+    '2': '..---',
+    '3': '...--',
+    '4': '....-',
+    '5': '.....',
+    '6': '-....',
+    '7': '--...',
+    '8': '---..',
+    '9': '----.',
+    '/': '-..-.',
+    ' ': ' ',
   };
 
   // Amateur radio callsign prefixes by region
   static const List<String> _prefixes = [
-    'W', 'K', 'N', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AI', 'AJ', 'AK', 'AL',
-    'KA', 'KB', 'KC', 'KD', 'KE', 'KF', 'KG', 'KI', 'KJ', 'KK', 'KL', 'KM', 'KN',
-    'WA', 'WB', 'WC', 'WD', 'WE', 'WF', 'WG', 'WI', 'WJ', 'WK', 'WL', 'WM', 'WN',
-    'NA', 'NB', 'NC', 'ND', 'NE', 'NF', 'NG', 'NI', 'NJ', 'NK', 'NL', 'NM', 'NN',
-    'G', 'M', 'GM', 'GW', '2E', 'EA', 'F', 'DL', 'DJ', 'DK', 'PA', 'ON', 'OZ',
-    'SM', 'LA', 'OH', 'SP', 'OK', 'HA', 'YO', 'LZ', 'YU', 'I', 'CT', 'UA', 'VK',
-    'ZL', 'JA', 'JH', 'JR', 'HL', 'BV', 'BY', 'VU', 'ZS', 'PY', 'LU', 'CE', 'XE',
+    'W',
+    'K',
+    'N',
+    'AA',
+    'AB',
+    'AC',
+    'AD',
+    'AE',
+    'AF',
+    'AG',
+    'AI',
+    'AJ',
+    'AK',
+    'AL',
+    'KA',
+    'KB',
+    'KC',
+    'KD',
+    'KE',
+    'KF',
+    'KG',
+    'KI',
+    'KJ',
+    'KK',
+    'KL',
+    'KM',
+    'KN',
+    'WA',
+    'WB',
+    'WC',
+    'WD',
+    'WE',
+    'WF',
+    'WG',
+    'WI',
+    'WJ',
+    'WK',
+    'WL',
+    'WM',
+    'WN',
+    'NA',
+    'NB',
+    'NC',
+    'ND',
+    'NE',
+    'NF',
+    'NG',
+    'NI',
+    'NJ',
+    'NK',
+    'NL',
+    'NM',
+    'NN',
+    'G',
+    'M',
+    'GM',
+    'GW',
+    '2E',
+    'EA',
+    'F',
+    'DL',
+    'DJ',
+    'DK',
+    'PA',
+    'ON',
+    'OZ',
+    'SM',
+    'LA',
+    'OH',
+    'SP',
+    'OK',
+    'HA',
+    'YO',
+    'LZ',
+    'YU',
+    'I',
+    'CT',
+    'UA',
+    'VK',
+    'ZL',
+    'JA',
+    'JH',
+    'JR',
+    'HL',
+    'BV',
+    'BY',
+    'VU',
+    'ZS',
+    'PY',
+    'LU',
+    'CE',
+    'XE',
   ];
 
   void setWpm(int wpm) {
@@ -69,9 +185,13 @@ class MorseAudioService {
 
   /// Convert text to morse code string (dots and dashes)
   String textToMorse(String text) {
-    return text.toUpperCase().split('').map((char) {
-      return _morseCode[char] ?? '';
-    }).join(' ');
+    return text
+        .toUpperCase()
+        .split('')
+        .map((char) {
+          return _morseCode[char] ?? '';
+        })
+        .join(' ');
   }
 
   /// Generate audio samples for a tone
@@ -91,7 +211,9 @@ class MorseAudioService {
         envelope = (numSamples - i) / releaseSamples;
       }
 
-      final sample = (sin(2 * pi * _frequency * i / _sampleRate) * 32767 * 0.5 * envelope).round();
+      final sample =
+          (sin(2 * pi * _frequency * i / _sampleRate) * 32767 * 0.5 * envelope)
+              .round();
       samples[i * 2] = sample & 0xFF;
       samples[i * 2 + 1] = (sample >> 8) & 0xFF;
     }
@@ -108,6 +230,10 @@ class MorseAudioService {
   /// Generate WAV file bytes from morse code
   Uint8List _generateWavFromMorse(String text) {
     final List<Uint8List> audioChunks = [];
+
+    // Lead-in silence to prevent audio player from cutting off the beginning
+    audioChunks.add(_generateSilence(150)); // 150ms lead-in
+
     final upperText = text.toUpperCase();
 
     for (int i = 0; i < upperText.length; i++) {
@@ -142,7 +268,10 @@ class MorseAudioService {
     }
 
     // Combine all chunks
-    final totalLength = audioChunks.fold<int>(0, (sum, chunk) => sum + chunk.length);
+    final totalLength = audioChunks.fold<int>(
+      0,
+      (sum, chunk) => sum + chunk.length,
+    );
     final audioData = Uint8List(totalLength);
     int offset = 0;
     for (final chunk in audioChunks) {

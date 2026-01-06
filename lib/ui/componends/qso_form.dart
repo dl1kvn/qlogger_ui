@@ -10,7 +10,14 @@ import '../../controllers/bluetooth_controller.dart';
 import '../../controllers/theme_controller.dart';
 import '../../screens/my_callsigns_screen.dart';
 import 'dart:math' show Random;
-import '../../screens/setup_screen.dart' show simulationActive, simulationPaused, simulationMinWpm, simulationMaxWpm, simulationGeneratedCallsign;
+import '../../screens/setup_screen.dart'
+    show
+        simulationActive,
+        simulationPaused,
+        simulationMinWpm,
+        simulationMaxWpm,
+        simulationCqWpm,
+        simulationGeneratedCallsign;
 import '../../services/morse_audio_service.dart';
 import '../../data/models/activation_model.dart';
 import '../theme/text_styles.dart';
@@ -293,14 +300,16 @@ class QsoForm extends StatelessWidget {
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(0),
+              ),
             ),
             child: Text(
               c.cwCqText.value.isEmpty
                   ? 'CQ'
                   : c.cwCqText.value.length > 6
-                      ? '${c.cwCqText.value.substring(0, 6)}…'
-                      : c.cwCqText.value,
+                  ? '${c.cwCqText.value.substring(0, 6)}…'
+                  : c.cwCqText.value,
               style: ButtonStyles.button,
               overflow: TextOverflow.ellipsis,
             ),
@@ -314,7 +323,9 @@ class QsoForm extends StatelessWidget {
               backgroundColor: Colors.deepOrangeAccent,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(0),
+              ),
             ),
             child: Text(
               'SEND',
@@ -331,7 +342,9 @@ class QsoForm extends StatelessWidget {
               backgroundColor: AppColors.btnLog,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(0),
+              ),
             ),
             child: Text(
               'SAVE',
@@ -348,11 +361,8 @@ class QsoForm extends StatelessWidget {
   Future<void> _simulationCq(QsoFormController c) async {
     final morseService = MorseAudioService();
 
-    // Set random WPM from configured range
-    final minWpm = simulationMinWpm.value.round();
-    final maxWpm = simulationMaxWpm.value.round();
-    final randomWpm = minWpm + Random().nextInt(maxWpm - minWpm + 1);
-    morseService.setWpm(randomWpm);
+    // Set CQ WPM from configured slider
+    morseService.setWpm(simulationCqWpm.value.round());
 
     // Build CQ message: Custom CQ text (or "CQ") + mycallsign (once) + K if active
     final cqText = c.cwCqText.value.isNotEmpty ? c.cwCqText.value : 'CQ';
@@ -365,8 +375,22 @@ class QsoForm extends StatelessWidget {
     // Play CQ message
     await morseService.playMorse(cqMessage);
 
-    // Wait 3 seconds before the answer comes
-    await Future.delayed(const Duration(seconds: 3));
+    // Wait before the answer comes - delay depends on CQ speed
+    // Formula: baseDelay + factor * (maxWpm - currentWpm)
+    // Adjust _answerDelayFactor to tune the delay to your liking
+    const double _answerDelayFactor =
+        40; // ms per WPM difference - adjust this!
+    const int _answerDelayBase = 800; // minimum delay in ms
+    final delayMs =
+        _answerDelayBase +
+        (_answerDelayFactor * (38 - simulationCqWpm.value)).round();
+    await Future.delayed(Duration(milliseconds: delayMs));
+
+    // Set random WPM from configured range for the answer
+    final minWpm = simulationMinWpm.value.round();
+    final maxWpm = simulationMaxWpm.value.round();
+    final randomWpm = minWpm + Random().nextInt(maxWpm - minWpm + 1);
+    morseService.setWpm(randomWpm);
 
     // Generate random callsign
     final randomCallsign = morseService.generateRandomCallsign();
@@ -380,11 +404,8 @@ class QsoForm extends StatelessWidget {
   Future<void> _simulationSend(QsoFormController c) async {
     final morseService = MorseAudioService();
 
-    // Set random WPM from configured range
-    final minWpm = simulationMinWpm.value.round();
-    final maxWpm = simulationMaxWpm.value.round();
-    final randomWpm = minWpm + Random().nextInt(maxWpm - minWpm + 1);
-    morseService.setWpm(randomWpm);
+    // Use my CQ speed for sending
+    morseService.setWpm(simulationCqWpm.value.round());
 
     // Build the send message matching info line format
     final callsign = c.callsignController.text.toUpperCase();
@@ -416,7 +437,8 @@ class QsoForm extends StatelessWidget {
       );
       if (activation != null && activation.reference.isNotEmpty) {
         if (_showRefPrefix.value) {
-          activationRef = '${activation.type.toUpperCase()} ${activation.reference.replaceAll('-', '')}';
+          activationRef =
+              '${activation.type.toUpperCase()} ${activation.reference.replaceAll('-', '')}';
         } else {
           activationRef = activation.reference.replaceAll('-', '');
         }
@@ -534,120 +556,122 @@ class QsoForm extends StatelessWidget {
                   return Container(
                     color: isDark ? Colors.black : AppColors.surfaceLight,
                     child: Row(
-                    children: [
-                      // My Callsign dropdown
-                      Expanded(
-                        flex: 5,
-                        child: Padding(
-                          padding: P.field,
-                          child: Obx(
-                            () => c.myCallsigns.isEmpty
-                                ? TextButton(
-                                    onPressed: () =>
-                                        Get.to(() => const MyCallsignsScreen()),
-                                    child: const Text('add call'),
-                                  )
-                                : DropdownButtonFormField<String>(
-                                    value: c.selectedMyCallsign.value,
-                                    decoration: InputStyles.dropdown(''),
-                                    isExpanded: true,
-                                    items: c.myCallsigns.map((call) {
-                                      return DropdownMenuItem(
-                                        value: call,
-                                        child: Text(call),
-                                      );
-                                    }).toList(),
-                                    onChanged: c.onMyCallsignChanged,
-                                  ),
+                      children: [
+                        // My Callsign dropdown
+                        Expanded(
+                          flex: 5,
+                          child: Padding(
+                            padding: P.field,
+                            child: Obx(
+                              () => c.myCallsigns.isEmpty
+                                  ? TextButton(
+                                      onPressed: () => Get.to(
+                                        () => const MyCallsignsScreen(),
+                                      ),
+                                      child: const Text('add call'),
+                                    )
+                                  : DropdownButtonFormField<String>(
+                                      value: c.selectedMyCallsign.value,
+                                      decoration: InputStyles.dropdown(''),
+                                      isExpanded: true,
+                                      items: c.myCallsigns.map((call) {
+                                        return DropdownMenuItem(
+                                          value: call,
+                                          child: Text(call),
+                                        );
+                                      }).toList(),
+                                      onChanged: c.onMyCallsignChanged,
+                                    ),
+                            ),
                           ),
                         ),
-                      ),
-                      // Activation dropdown
-                      Expanded(
-                        flex: 5,
-                        child: Padding(
-                          padding: P.field,
-                          child: Obx(() {
-                            final dbController = Get.find<DatabaseController>();
-                            final activations = dbController.activationList
-                                .where((a) => a.showInDropdown)
-                                .toList();
-                            return DropdownButtonFormField<int?>(
-                              value: c.selectedActivationId.value,
-                              decoration: InputStyles.dropdown(''),
-                              isExpanded: true,
-                              itemHeight: 56,
-                              items: [
-                                const DropdownMenuItem<int?>(
-                                  value: null,
-                                  child: Text('no activation'),
-                                ),
-                                ...activations.map((a) {
-                                  return DropdownMenuItem<int?>(
-                                    value: a.id,
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          ActivationModel.getIcon(a.type),
-                                          size: 16,
-                                          color: ActivationModel.getColor(
-                                            a.type,
+                        // Activation dropdown
+                        Expanded(
+                          flex: 5,
+                          child: Padding(
+                            padding: P.field,
+                            child: Obx(() {
+                              final dbController =
+                                  Get.find<DatabaseController>();
+                              final activations = dbController.activationList
+                                  .where((a) => a.showInDropdown)
+                                  .toList();
+                              return DropdownButtonFormField<int?>(
+                                value: c.selectedActivationId.value,
+                                decoration: InputStyles.dropdown(''),
+                                isExpanded: true,
+                                itemHeight: 56,
+                                items: [
+                                  const DropdownMenuItem<int?>(
+                                    value: null,
+                                    child: Text('no activation'),
+                                  ),
+                                  ...activations.map((a) {
+                                    return DropdownMenuItem<int?>(
+                                      value: a.id,
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            ActivationModel.getIcon(a.type),
+                                            size: 16,
+                                            color: ActivationModel.getColor(
+                                              a.type,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                a.reference,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              if (a.title.isNotEmpty)
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
                                                 Text(
-                                                  a.title,
-                                                  style: const TextStyle(
-                                                    fontSize: 10,
-                                                    color: Colors.grey,
-                                                  ),
+                                                  a.reference,
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                 ),
-                                            ],
-                                          ),
-                                        ),
-                                        if (a.imagePath != null) ...[
-                                          const SizedBox(width: 4),
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              3,
-                                            ),
-                                            child: Image.file(
-                                              File(a.imagePath!),
-                                              width: 20,
-                                              height: 20,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) =>
-                                                  const SizedBox.shrink(),
+                                                if (a.title.isNotEmpty)
+                                                  Text(
+                                                    a.title,
+                                                    style: const TextStyle(
+                                                      fontSize: 10,
+                                                      color: Colors.grey,
+                                                    ),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                              ],
                                             ),
                                           ),
+                                          if (a.imagePath != null) ...[
+                                            const SizedBox(width: 4),
+                                            ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(3),
+                                              child: Image.file(
+                                                File(a.imagePath!),
+                                                width: 20,
+                                                height: 20,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) =>
+                                                    const SizedBox.shrink(),
+                                              ),
+                                            ),
+                                          ],
                                         ],
-                                      ],
-                                    ),
-                                  );
-                                }),
-                              ],
-                              onChanged: (value) {
-                                c.selectedActivationId.value = value;
-                              },
-                            );
-                          }),
+                                      ),
+                                    );
+                                  }),
+                                ],
+                                onChanged: (value) {
+                                  c.selectedActivationId.value = value;
+                                },
+                              );
+                            }),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                   );
                 }),
                 SizedBox(height: P.lineSpacing),
@@ -1011,74 +1035,82 @@ class QsoForm extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Simulation pause/play toggle (only visible when simulation is active)
-                    Obx(() => simulationActive.value
-                        ? Padding(
-                            padding: P.icon,
-                            child: GestureDetector(
-                              onTap: () {
-                                simulationPaused.value = !simulationPaused.value;
-                                if (!simulationPaused.value) {
-                                  // Stopped - clear generated callsign
-                                  simulationGeneratedCallsign.value = '';
-                                  MorseAudioService().stop();
-                                }
-                              },
-                              child: Icon(
-                                simulationPaused.value ? Icons.pause : Icons.play_arrow,
-                                size: 28,
-                                color: Colors.red,
-                              ),
-                            ),
-                          )
-                        : const SizedBox.shrink()),
-                    // QRZ Icon - opens qrz.com when callsign is valid (hidden when simulation is active)
-                    Obx(() => simulationActive.value
-                        ? const SizedBox.shrink()
-                        : ValueListenableBuilder<TextEditingValue>(
-                            valueListenable: c.callsignController,
-                            builder: (context, value, child) {
-                              // Callsign regex: at least one letter, one digit, and one letter
-                              final callsignRegex = RegExp(
-                                r'^[A-Z0-9]{1,3}[0-9][A-Z0-9]*[A-Z]$',
-                                caseSensitive: false,
-                              );
-                              final isValidCallsign = callsignRegex.hasMatch(
-                                value.text.trim(),
-                              );
-                              return Padding(
-                                padding: P.icon,
-                                child: GestureDetector(
-                                  onTap: isValidCallsign
-                                      ? () async {
-                                          final call = value.text
-                                              .trim()
-                                              .toUpperCase();
-                                          final url = Uri(
-                                            scheme: 'https',
-                                            host: 'www.qrz.com',
-                                            path: '/db/$call',
-                                          );
-                                          try {
-                                            await launchUrl(
-                                              url,
-                                              mode: LaunchMode.externalApplication,
-                                            );
-                                          } catch (e) {
-                                            debugPrint(e.toString());
-                                          }
-                                        }
-                                      : null,
-                                  child: Icon(
-                                    Icons.emoji_people,
-                                    size: 28,
-                                    color: isValidCallsign
-                                        ? Colors.blueAccent
-                                        : Colors.grey.shade400,
-                                  ),
+                    Obx(
+                      () => simulationActive.value
+                          ? Padding(
+                              padding: P.icon,
+                              child: GestureDetector(
+                                onTap: () {
+                                  simulationPaused.value =
+                                      !simulationPaused.value;
+                                  if (!simulationPaused.value) {
+                                    // Stopped - clear generated callsign
+                                    simulationGeneratedCallsign.value = '';
+                                    MorseAudioService().stop();
+                                  }
+                                },
+                                child: Icon(
+                                  simulationPaused.value
+                                      ? Icons.pause
+                                      : Icons.play_arrow,
+                                  size: 28,
+                                  color: Colors.red,
                                 ),
-                              );
-                            },
-                          )),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                    // QRZ Icon - opens qrz.com when callsign is valid (hidden when simulation is active)
+                    Obx(
+                      () => simulationActive.value
+                          ? const SizedBox.shrink()
+                          : ValueListenableBuilder<TextEditingValue>(
+                              valueListenable: c.callsignController,
+                              builder: (context, value, child) {
+                                // Callsign regex: at least one letter, one digit, and one letter
+                                final callsignRegex = RegExp(
+                                  r'^[A-Z0-9]{1,3}[0-9][A-Z0-9]*[A-Z]$',
+                                  caseSensitive: false,
+                                );
+                                final isValidCallsign = callsignRegex.hasMatch(
+                                  value.text.trim(),
+                                );
+                                return Padding(
+                                  padding: P.icon,
+                                  child: GestureDetector(
+                                    onTap: isValidCallsign
+                                        ? () async {
+                                            final call = value.text
+                                                .trim()
+                                                .toUpperCase();
+                                            final url = Uri(
+                                              scheme: 'https',
+                                              host: 'www.qrz.com',
+                                              path: '/db/$call',
+                                            );
+                                            try {
+                                              await launchUrl(
+                                                url,
+                                                mode: LaunchMode
+                                                    .externalApplication,
+                                              );
+                                            } catch (e) {
+                                              debugPrint(e.toString());
+                                            }
+                                          }
+                                        : null,
+                                    child: Icon(
+                                      Icons.emoji_people,
+                                      size: 28,
+                                      color: isValidCallsign
+                                          ? Colors.blueAccent
+                                          : Colors.grey.shade400,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
                     // Callsign
                     Expanded(
                       flex: 6,
@@ -1424,8 +1456,9 @@ class QsoForm extends StatelessWidget {
                       if (!hasVisibleButton) return const SizedBox.shrink();
 
                       // Filter to only visible buttons in this row
-                      final visibleButtons =
-                          row.where((b) => isButtonVisible(b)).toList();
+                      final visibleButtons = row
+                          .where((b) => isButtonVisible(b))
+                          .toList();
 
                       return Column(
                         children: [
@@ -1436,8 +1469,11 @@ class QsoForm extends StatelessWidget {
                             const SizedBox(height: 2),
                           Row(
                             children: visibleButtons
-                                .map((buttonId) =>
-                                    Expanded(child: _buildButton(buttonId, c)))
+                                .map(
+                                  (buttonId) => Expanded(
+                                    child: _buildButton(buttonId, c),
+                                  ),
+                                )
                                 .toList(),
                           ),
                         ],
