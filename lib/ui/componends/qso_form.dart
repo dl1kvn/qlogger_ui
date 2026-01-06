@@ -344,7 +344,7 @@ class QsoForm extends StatelessWidget {
     );
   }
 
-  /// Simulation CQ: Send CQ + mycallsign, then random callsign, wait 2s, repeat callsign
+  /// Simulation CQ: Send CQ + mycallsign (once), then wait 3s and play random callsign
   Future<void> _simulationCq(QsoFormController c) async {
     final morseService = MorseAudioService();
 
@@ -354,29 +354,29 @@ class QsoForm extends StatelessWidget {
     final randomWpm = minWpm + Random().nextInt(maxWpm - minWpm + 1);
     morseService.setWpm(randomWpm);
 
-    // Build CQ message: Custom CQ text (or "CQ") + mycallsign
+    // Build CQ message: Custom CQ text (or "CQ") + mycallsign (once) + K if active
     final cqText = c.cwCqText.value.isNotEmpty ? c.cwCqText.value : 'CQ';
     final myCallsign = c.selectedMyCallsign.value ?? '';
-    final cqMessage = '$cqText $myCallsign $myCallsign';
+    String cqMessage = '$cqText $myCallsign';
+    if (c.sendK.value) {
+      cqMessage += ' K';
+    }
 
     // Play CQ message
     await morseService.playMorse(cqMessage);
+
+    // Wait 3 seconds before the answer comes
+    await Future.delayed(const Duration(seconds: 3));
 
     // Generate random callsign
     final randomCallsign = morseService.generateRandomCallsign();
     simulationGeneratedCallsign.value = randomCallsign;
 
-    // Play random callsign first time
-    await morseService.playMorse(randomCallsign);
-
-    // Wait 2 seconds
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Play random callsign second time
+    // Play random callsign (only once)
     await morseService.playMorse(randomCallsign);
   }
 
-  /// Simulation SEND: Send response like the normal SEND button would
+  /// Simulation SEND: Send response matching the info line format
   Future<void> _simulationSend(QsoFormController c) async {
     final morseService = MorseAudioService();
 
@@ -386,18 +386,49 @@ class QsoForm extends StatelessWidget {
     final randomWpm = minWpm + Random().nextInt(maxWpm - minWpm + 1);
     morseService.setWpm(randomWpm);
 
-    // Build the send message: callsign + RST + optional extras
+    // Build the send message matching info line format
     final callsign = c.callsignController.text.toUpperCase();
-    final rst = c.rstOutController.text;
     final pre = c.cwPreController.text;
     final post = c.cwPostController.text;
 
+    // Apply 9/N transformation to RST if enabled
+    String rst = c.rstOutController.text;
+    if (c.nineIsN.value) {
+      rst = rst.replaceAll('9', 'N');
+    }
+
+    // Apply 0/T transformation to counter if enabled
+    String counter = '';
+    if (c.useCounter.value && c.xtra2Controller.text.isNotEmpty) {
+      counter = c.xtra2Controller.text;
+      if (c.zeroIsT.value) {
+        counter = counter.replaceAll('0', 'T');
+      }
+    }
+
+    // Get activation reference if selected
+    String activationRef = '';
+    final activationId = c.selectedActivationId.value;
+    if (activationId != null) {
+      final dbController = Get.find<DatabaseController>();
+      final activation = dbController.activationList.firstWhereOrNull(
+        (a) => a.id == activationId,
+      );
+      if (activation != null && activation.reference.isNotEmpty) {
+        if (_showRefPrefix.value) {
+          activationRef = '${activation.type.toUpperCase()} ${activation.reference.replaceAll('-', '')}';
+        } else {
+          activationRef = activation.reference.replaceAll('-', '');
+        }
+      }
+    }
+
+    // Build message: CALL PRE RST COUNT ACTIVATION POST BK
     String message = callsign;
     if (pre.isNotEmpty) message += ' $pre';
     message += ' $rst';
-    if (c.useCounter.value && c.xtra2Controller.text.isNotEmpty) {
-      message += ' ${c.xtra2Controller.text}';
-    }
+    if (counter.isNotEmpty) message += ' $counter';
+    if (activationRef.isNotEmpty) message += ' $activationRef';
     if (post.isNotEmpty) message += ' $post';
     if (c.sendBK.value) message += ' BK';
 
@@ -1392,6 +1423,10 @@ class QsoForm extends StatelessWidget {
                       );
                       if (!hasVisibleButton) return const SizedBox.shrink();
 
+                      // Filter to only visible buttons in this row
+                      final visibleButtons =
+                          row.where((b) => isButtonVisible(b)).toList();
+
                       return Column(
                         children: [
                           if (rowIndex > 0 &&
@@ -1400,12 +1435,10 @@ class QsoForm extends StatelessWidget {
                                   .any((r) => r.any((b) => isButtonVisible(b))))
                             const SizedBox(height: 2),
                           Row(
-                            children: row.map((buttonId) {
-                              if (!isButtonVisible(buttonId)) {
-                                return const Expanded(child: SizedBox.shrink());
-                              }
-                              return Expanded(child: _buildButton(buttonId, c));
-                            }).toList(),
+                            children: visibleButtons
+                                .map((buttonId) =>
+                                    Expanded(child: _buildButton(buttonId, c)))
+                                .toList(),
                           ),
                         ],
                       );
