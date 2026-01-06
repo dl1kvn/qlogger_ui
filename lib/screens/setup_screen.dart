@@ -11,6 +11,14 @@ import 'activations_screen.dart';
 import 'help_screen.dart';
 import 'satellite_setup_screen.dart';
 
+// Global simulation state
+final _simulationStorage = GetStorage();
+final simulationActive = (_simulationStorage.read<bool>('simulation_active') ?? false).obs;
+final simulationPaused = false.obs; // Paused state for QSO form toggle
+final simulationMinWpm = (_simulationStorage.read<double>('simulation_min_wpm') ?? 20.0).obs;
+final simulationMaxWpm = (_simulationStorage.read<double>('simulation_max_wpm') ?? 28.0).obs;
+final simulationGeneratedCallsign = ''.obs; // The random callsign generated during simulation
+
 class SetupScreen extends StatelessWidget {
   const SetupScreen({super.key});
 
@@ -175,6 +183,45 @@ class SetupScreen extends StatelessWidget {
               icon: const Icon(Icons.help),
               label: const Text('Help'),
             ),
+            const SizedBox(height: 12),
+            Obx(() => FilledButton.icon(
+              onPressed: () {
+                simulationActive.value = !simulationActive.value;
+                _simulationStorage.write('simulation_active', simulationActive.value);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: simulationActive.value ? Colors.green : Colors.red,
+              ),
+              icon: Icon(simulationActive.value ? Icons.pause : Icons.play_arrow),
+              label: const Text('Simulation'),
+            )),
+            const SizedBox(height: 12),
+            // WPM Range Slider
+            Obx(() => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'CW Speed: ${simulationMinWpm.value.round()} - ${simulationMaxWpm.value.round()} WPM',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                RangeSlider(
+                  values: RangeValues(simulationMinWpm.value, simulationMaxWpm.value),
+                  min: 18,
+                  max: 38,
+                  divisions: 20,
+                  labels: RangeLabels(
+                    simulationMinWpm.value.round().toString(),
+                    simulationMaxWpm.value.round().toString(),
+                  ),
+                  onChanged: (values) {
+                    simulationMinWpm.value = values.start;
+                    simulationMaxWpm.value = values.end;
+                    _simulationStorage.write('simulation_min_wpm', values.start);
+                    _simulationStorage.write('simulation_max_wpm', values.end);
+                  },
+                ),
+              ],
+            )),
           ],
         ),
       ),

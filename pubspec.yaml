@@ -51,6 +51,7 @@ dependencies:
   connectivity_plus: ^7.0.0
   wakelock_plus: ^1.4.0
   image_picker: ^1.2.1
+  just_audio: ^0.9.43
 
 dev_dependencies:
   flutter_test:

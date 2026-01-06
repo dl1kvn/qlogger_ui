@@ -9,6 +9,9 @@ import '../../controllers/database_controller.dart';
 import '../../controllers/bluetooth_controller.dart';
 import '../../controllers/theme_controller.dart';
 import '../../screens/my_callsigns_screen.dart';
+import 'dart:math' show Random;
+import '../../screens/setup_screen.dart' show simulationActive, simulationPaused, simulationMinWpm, simulationMaxWpm, simulationGeneratedCallsign;
+import '../../services/morse_audio_service.dart';
 import '../../data/models/activation_model.dart';
 import '../theme/text_styles.dart';
 import '../theme/paddings.dart';
@@ -276,6 +279,130 @@ class QsoForm extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
     );
+  }
+
+  /// Build simulation-specific buttons (CQ, SEND, SAVE)
+  Widget _buildSimulationButtons(QsoFormController c) {
+    return Row(
+      children: [
+        // CQ Button - sends CQ + mycallsign, then random callsign twice
+        Expanded(
+          child: ElevatedButton(
+            onPressed: () => _simulationCq(c),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+            ),
+            child: Text(
+              c.cwCqText.value.isEmpty
+                  ? 'CQ'
+                  : c.cwCqText.value.length > 6
+                      ? '${c.cwCqText.value.substring(0, 6)}…'
+                      : c.cwCqText.value,
+              style: ButtonStyles.button,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        // SEND Button - sends the response morse
+        Expanded(
+          child: ElevatedButton(
+            onPressed: () => _simulationSend(c),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepOrangeAccent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+            ),
+            child: Text(
+              'SEND',
+              style: ButtonStyles.button,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        // SAVE Button - saves the QSO
+        Expanded(
+          child: ElevatedButton(
+            onPressed: c.submitQso,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.btnLog,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+            ),
+            child: Text(
+              'SAVE',
+              style: ButtonStyles.button,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Simulation CQ: Send CQ + mycallsign, then random callsign, wait 2s, repeat callsign
+  Future<void> _simulationCq(QsoFormController c) async {
+    final morseService = MorseAudioService();
+
+    // Set random WPM from configured range
+    final minWpm = simulationMinWpm.value.round();
+    final maxWpm = simulationMaxWpm.value.round();
+    final randomWpm = minWpm + Random().nextInt(maxWpm - minWpm + 1);
+    morseService.setWpm(randomWpm);
+
+    // Build CQ message: Custom CQ text (or "CQ") + mycallsign
+    final cqText = c.cwCqText.value.isNotEmpty ? c.cwCqText.value : 'CQ';
+    final myCallsign = c.selectedMyCallsign.value ?? '';
+    final cqMessage = '$cqText $myCallsign $myCallsign';
+
+    // Play CQ message
+    await morseService.playMorse(cqMessage);
+
+    // Generate random callsign
+    final randomCallsign = morseService.generateRandomCallsign();
+    simulationGeneratedCallsign.value = randomCallsign;
+
+    // Play random callsign first time
+    await morseService.playMorse(randomCallsign);
+
+    // Wait 2 seconds
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Play random callsign second time
+    await morseService.playMorse(randomCallsign);
+  }
+
+  /// Simulation SEND: Send response like the normal SEND button would
+  Future<void> _simulationSend(QsoFormController c) async {
+    final morseService = MorseAudioService();
+
+    // Set random WPM from configured range
+    final minWpm = simulationMinWpm.value.round();
+    final maxWpm = simulationMaxWpm.value.round();
+    final randomWpm = minWpm + Random().nextInt(maxWpm - minWpm + 1);
+    morseService.setWpm(randomWpm);
+
+    // Build the send message: callsign + RST + optional extras
+    final callsign = c.callsignController.text.toUpperCase();
+    final rst = c.rstOutController.text;
+    final pre = c.cwPreController.text;
+    final post = c.cwPostController.text;
+
+    String message = callsign;
+    if (pre.isNotEmpty) message += ' $pre';
+    message += ' $rst';
+    if (c.useCounter.value && c.xtra2Controller.text.isNotEmpty) {
+      message += ' ${c.xtra2Controller.text}';
+    }
+    if (post.isNotEmpty) message += ' $post';
+    if (c.sendBK.value) message += ' BK';
+
+    // Play the message
+    await morseService.playMorse(message);
   }
 
   Future<void> _showDatePicker(
@@ -852,52 +979,75 @@ class QsoForm extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // QRZ Icon - opens qrz.com when callsign is valid
-                    ValueListenableBuilder<TextEditingValue>(
-                      valueListenable: c.callsignController,
-                      builder: (context, value, child) {
-                        // Callsign regex: at least one letter, one digit, and one letter
-                        final callsignRegex = RegExp(
-                          r'^[A-Z0-9]{1,3}[0-9][A-Z0-9]*[A-Z]$',
-                          caseSensitive: false,
-                        );
-                        final isValidCallsign = callsignRegex.hasMatch(
-                          value.text.trim(),
-                        );
-                        return Padding(
-                          padding: P.icon,
-                          child: GestureDetector(
-                            onTap: isValidCallsign
-                                ? () async {
-                                    final call = value.text
-                                        .trim()
-                                        .toUpperCase();
-                                    final url = Uri(
-                                      scheme: 'https',
-                                      host: 'www.qrz.com',
-                                      path: '/db/$call',
-                                    );
-                                    try {
-                                      await launchUrl(
-                                        url,
-                                        mode: LaunchMode.externalApplication,
-                                      );
-                                    } catch (e) {
-                                      debugPrint(e.toString());
-                                    }
-                                  }
-                                : null,
-                            child: Icon(
-                              Icons.emoji_people,
-                              size: 28,
-                              color: isValidCallsign
-                                  ? Colors.blueAccent
-                                  : Colors.grey.shade400,
+                    // Simulation pause/play toggle (only visible when simulation is active)
+                    Obx(() => simulationActive.value
+                        ? Padding(
+                            padding: P.icon,
+                            child: GestureDetector(
+                              onTap: () {
+                                simulationPaused.value = !simulationPaused.value;
+                                if (!simulationPaused.value) {
+                                  // Stopped - clear generated callsign
+                                  simulationGeneratedCallsign.value = '';
+                                  MorseAudioService().stop();
+                                }
+                              },
+                              child: Icon(
+                                simulationPaused.value ? Icons.pause : Icons.play_arrow,
+                                size: 28,
+                                color: Colors.red,
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                          )
+                        : const SizedBox.shrink()),
+                    // QRZ Icon - opens qrz.com when callsign is valid (hidden when simulation is active)
+                    Obx(() => simulationActive.value
+                        ? const SizedBox.shrink()
+                        : ValueListenableBuilder<TextEditingValue>(
+                            valueListenable: c.callsignController,
+                            builder: (context, value, child) {
+                              // Callsign regex: at least one letter, one digit, and one letter
+                              final callsignRegex = RegExp(
+                                r'^[A-Z0-9]{1,3}[0-9][A-Z0-9]*[A-Z]$',
+                                caseSensitive: false,
+                              );
+                              final isValidCallsign = callsignRegex.hasMatch(
+                                value.text.trim(),
+                              );
+                              return Padding(
+                                padding: P.icon,
+                                child: GestureDetector(
+                                  onTap: isValidCallsign
+                                      ? () async {
+                                          final call = value.text
+                                              .trim()
+                                              .toUpperCase();
+                                          final url = Uri(
+                                            scheme: 'https',
+                                            host: 'www.qrz.com',
+                                            path: '/db/$call',
+                                          );
+                                          try {
+                                            await launchUrl(
+                                              url,
+                                              mode: LaunchMode.externalApplication,
+                                            );
+                                          } catch (e) {
+                                            debugPrint(e.toString());
+                                          }
+                                        }
+                                      : null,
+                                  child: Icon(
+                                    Icons.emoji_people,
+                                    size: 28,
+                                    color: isValidCallsign
+                                        ? Colors.blueAccent
+                                        : Colors.grey.shade400,
+                                  ),
+                                ),
+                              );
+                            },
+                          )),
                     // Callsign
                     Expanded(
                       flex: 6,
@@ -1202,6 +1352,11 @@ class QsoForm extends StatelessWidget {
                 SizedBox(height: P.lineSpacing),
                 // Dynamic button rows based on saved layout
                 Obx(() {
+                  // If simulation is active and playing, show simulation buttons
+                  if (simulationActive.value && simulationPaused.value) {
+                    return _buildSimulationButtons(c);
+                  }
+
                   final btController = Get.find<BluetoothController>();
                   final isCwMode = c.selectedMode.value == 'CW';
                   final isConnected = btController.isConnected.value;
