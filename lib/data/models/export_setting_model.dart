@@ -3,7 +3,7 @@ import 'dart:convert';
 class ExportSettingModel {
   int? id;
   String name;
-  String format; // 'adif' or 'cabrillo'
+  String format; // 'adif', 'cabrillo', or 'edi'
   String dateFormat; // 'YYYY-MM-DD' or 'YYYYMMDD'
   String bandFormat; // 'band' (20M) or 'freq' (14000)
   String fields; // JSON array of selected field names in order
@@ -30,7 +30,7 @@ class ExportSettingModel {
     'activationId',
   ];
 
-  static const List<String> formats = ['adif', 'cabrillo'];
+  static const List<String> formats = ['adif', 'cabrillo', 'edi'];
   static const List<String> dateFormats = ['YYYY-MM-DD', 'YYYYMMDD'];
   static const List<String> bandFormats = ['band', 'freq'];
 

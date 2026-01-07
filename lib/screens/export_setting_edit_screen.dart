@@ -143,9 +143,23 @@ class _ExportSettingEditScreenState extends State<ExportSettingEditScreen> {
                 border: OutlineInputBorder(),
               ),
               items: ExportSettingModel.formats.map((f) {
+                String label;
+                switch (f) {
+                  case 'adif':
+                    label = 'ADIF';
+                    break;
+                  case 'cabrillo':
+                    label = 'Cabrillo';
+                    break;
+                  case 'edi':
+                    label = 'EDI (REG1TEST)';
+                    break;
+                  default:
+                    label = f.toUpperCase();
+                }
                 return DropdownMenuItem(
                   value: f,
-                  child: Text(f.toUpperCase()),
+                  child: Text(label),
                 );
               }).toList(),
               onChanged: (v) {

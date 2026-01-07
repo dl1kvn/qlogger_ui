@@ -334,28 +334,6 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               contentPadding: EdgeInsets.zero,
             ),
             CheckboxListTile(
-              title: const Text('Use Spacebar Toggle'),
-              subtitle: const Text(
-                'Spacebar in Callsign → NR/INFO, Spacebar in NR/INFO → Callsign',
-              ),
-              value: _useSpacebarToggle,
-              onChanged: (v) => setState(() => _useSpacebarToggle = v ?? false),
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-            ),
-            if (_useSpacebarToggle)
-              CheckboxListTile(
-                title: const Text('Toggle Second Field'),
-                subtitle: const Text(
-                  'Spacebar in NR/INFO → Xtra1, Spacebar in Xtra1 → Callsign',
-                ),
-                value: _toggleSecondField,
-                onChanged: (v) =>
-                    setState(() => _toggleSecondField = v ?? false),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-              ),
-            CheckboxListTile(
               title: const Text('Use CQ Zones'),
               subtitle: const Text(
                 'Auto-fill CQ zone in NR/INFO based on callsign prefix',

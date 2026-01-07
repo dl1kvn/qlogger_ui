@@ -21,11 +21,12 @@ class MorseAudioService {
   int get _dahDuration => _ditDuration * 3;
   int get _elementGap => _ditDuration; // Gap between dits/dahs
   int get _letterGap => _ditDuration * 3; // Gap between letters
-  int get _wordGap => _ditDuration * 7; // Gap between words
+  int get _wordGap => _ditDuration * 9; // Gap between words
 
   // Audio parameters
   final int _sampleRate = 44100;
-  double get _frequency => simulationFrequency.value; // Hz - from simulation settings
+  double get _frequency =>
+      simulationFrequency.value; // Hz - from simulation settings
 
   // Morse code dictionary
   static const Map<String, String> _morseCode = {
@@ -66,6 +67,7 @@ class MorseAudioService {
     '8': '---..',
     '9': '----.',
     '/': '-..-.',
+    '?': '..--..',
     ' ': ' ',
   };
 
@@ -233,7 +235,7 @@ class MorseAudioService {
     final List<Uint8List> audioChunks = [];
 
     // Lead-in silence to prevent audio player from cutting off the beginning
-    audioChunks.add(_generateSilence(150)); // 150ms lead-in
+    audioChunks.add(_generateSilence(350)); // 350ms lead-in
 
     final upperText = text.toUpperCase();
 

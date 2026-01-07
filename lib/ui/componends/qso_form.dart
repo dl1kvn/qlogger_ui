@@ -17,7 +17,13 @@ import '../../screens/simulation_setup_screen.dart'
         simulationMinWpm,
         simulationMaxWpm,
         simulationCqWpm,
-        simulationGeneratedCallsign;
+        simulationGeneratedCallsign,
+        simulationGeneratedNumber,
+        simulationGeneratedCode,
+        simulationAwaitingResponse,
+        simulationResultList,
+        simulationSaveCount,
+        SimulationResult;
 import '../../services/morse_audio_service.dart';
 import '../../data/models/activation_model.dart';
 import '../theme/text_styles.dart';
@@ -33,6 +39,7 @@ final _infoLineBgColor = (_storage.read<int>('info_line_bg') ?? 0xFFFFE0B2).obs;
 final _infoLineTextColor =
     (_storage.read<int>('info_line_text') ?? 0xFF000000).obs;
 final _showRefPrefix = (_storage.read<bool>('show_ref_prefix') ?? false).obs;
+
 
 void _showInfoLineSettings(BuildContext context) {
   final isDark = Get.find<ThemeController>().isDarkMode.value;
@@ -208,17 +215,6 @@ class QsoForm extends StatelessWidget {
     });
   }
 
-  Widget _buildStatusIndicator(String label, bool active) {
-    return Text(
-      label,
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.bold,
-        color: active ? Colors.green : Colors.grey.shade400,
-      ),
-    );
-  }
-
   Widget _buildButton(String buttonId, QsoFormController c) {
     final buttonConfig = {
       'CQ': {
@@ -317,6 +313,7 @@ class QsoForm extends StatelessWidget {
         ),
         // SEND Button - sends the response morse
         Expanded(
+          flex: 2,
           child: ElevatedButton(
             onPressed: () => _simulationSend(c),
             style: ElevatedButton.styleFrom(
@@ -334,10 +331,30 @@ class QsoForm extends StatelessWidget {
             ),
           ),
         ),
-        // SAVE Button - saves the QSO
+        // ? Button - repeats callsign or number
+        Expanded(
+          flex: 1,
+          child: ElevatedButton(
+            onPressed: () => _simulationRepeat(c),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueGrey,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(0),
+              ),
+            ),
+            child: Text(
+              '?',
+              style: ButtonStyles.button,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        // SAVE Button - shows comparison in simulation mode
         Expanded(
           child: ElevatedButton(
-            onPressed: c.submitQso,
+            onPressed: () => _simulationSave(c),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.btnLog,
               foregroundColor: Colors.white,
@@ -357,8 +374,154 @@ class QsoForm extends StatelessWidget {
     );
   }
 
+  /// Build simulation results display
+  Widget _buildSimulationResults() {
+    return Obx(() {
+      if (simulationResultList.isEmpty) return const SizedBox.shrink();
+
+      return Container(
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Simulation Results',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => simulationResultList.clear(),
+                  child: const Icon(
+                    Icons.delete_outline,
+                    size: 18,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 8),
+            ...simulationResultList.reversed.take(10).map((result) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    // Callsign comparison
+                    Expanded(
+                      flex: 3,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${result.actualCallsign}/${result.userCallsign}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: result.callsignCorrect
+                                    ? Colors.green
+                                    : Colors.red,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Icon(
+                            result.callsignCorrect
+                                ? Icons.check_circle
+                                : Icons.cancel,
+                            size: 12,
+                            color: result.callsignCorrect
+                                ? Colors.green
+                                : Colors.red,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    // Number comparison
+                    Expanded(
+                      flex: 2,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${result.actualNumber}/${result.userNumber}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: result.numberCorrect
+                                    ? Colors.green
+                                    : Colors.red,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Icon(
+                            result.numberCorrect
+                                ? Icons.check_circle
+                                : Icons.cancel,
+                            size: 12,
+                            color: result.numberCorrect
+                                ? Colors.green
+                                : Colors.red,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    // Code comparison
+                    Expanded(
+                      flex: 3,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${result.actualCode}/${result.userCode}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: result.codeCorrect
+                                    ? Colors.green
+                                    : Colors.red,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Icon(
+                            result.codeCorrect
+                                ? Icons.check_circle
+                                : Icons.cancel,
+                            size: 12,
+                            color: result.codeCorrect
+                                ? Colors.green
+                                : Colors.red,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ],
+        ),
+      );
+    });
+  }
+
   /// Simulation CQ: Send CQ + mycallsign (once), then wait and play random callsign
   void _simulationCq(QsoFormController c) {
+    // Clear all input fields
+    c.callsignController.clear();
+    c.receivedInfoController.clear();
+    c.xtra1Controller.clear();
+
     // Focus callsign field immediately
     c.callsignFocus.requestFocus();
     c.setActiveTextField(c.callsignController);
@@ -370,6 +533,10 @@ class QsoForm extends StatelessWidget {
   /// Async helper for CQ sequence (runs in background)
   Future<void> _playSimulationCqSequence(QsoFormController c) async {
     final morseService = MorseAudioService();
+
+    // Reset simulation state
+    simulationAwaitingResponse.value = true;
+    simulationGeneratedNumber.value = '';
 
     // Set CQ WPM from configured slider
     morseService.setWpm(simulationCqWpm.value.round());
@@ -384,6 +551,7 @@ class QsoForm extends StatelessWidget {
 
     // Play CQ message
     await morseService.playMorse(cqMessage);
+    if (!simulationActive.value) return; // Stop if simulation ended
 
     // Wait before the answer comes - delay depends on CQ speed
     const double answerDelayFactor = 40; // ms per WPM difference
@@ -392,6 +560,7 @@ class QsoForm extends StatelessWidget {
         answerDelayBase +
         (answerDelayFactor * (38 - simulationCqWpm.value)).round();
     await Future.delayed(Duration(milliseconds: delayMs));
+    if (!simulationActive.value) return; // Stop if simulation ended
 
     // Set random WPM from configured range for the answer
     final minWpm = simulationMinWpm.value.round();
@@ -403,12 +572,59 @@ class QsoForm extends StatelessWidget {
     final randomCallsign = morseService.generateRandomCallsign();
     simulationGeneratedCallsign.value = randomCallsign;
 
-    // Play random callsign (only once)
+    // Play random callsign first time
     await morseService.playMorse(randomCallsign);
+    if (!simulationActive.value) return; // Stop if simulation ended
+
+    // Wait for user response - if not responded after delay, repeat callsign
+    await Future.delayed(Duration(milliseconds: delayMs + 500));
+    if (!simulationActive.value) return; // Stop if simulation ended
+
+    // Check if user has clicked SEND (simulationAwaitingResponse becomes false)
+    if (simulationAwaitingResponse.value) {
+      // User hasn't responded, repeat the callsign
+      await morseService.playMorse(randomCallsign);
+    }
+  }
+
+  /// Simulation ? Button: User sends "?" and station repeats callsign
+  void _simulationRepeat(QsoFormController c) {
+    _playSimulationRepeatSequence(c);
+  }
+
+  /// Async helper for repeat sequence
+  Future<void> _playSimulationRepeatSequence(QsoFormController c) async {
+    final morseService = MorseAudioService();
+
+    // User sends "?" at their CQ speed
+    morseService.setWpm(simulationCqWpm.value.round());
+    await morseService.playMorse('?');
+    if (!simulationActive.value) return;
+
+    // Wait a moment
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!simulationActive.value) return;
+
+    // Station repeats at random speed
+    final minWpm = simulationMinWpm.value.round();
+    final maxWpm = simulationMaxWpm.value.round();
+    final randomWpm = minWpm + Random().nextInt(maxWpm - minWpm + 1);
+    morseService.setWpm(randomWpm);
+
+    // If number was already sent, repeat the number
+    // Otherwise repeat the callsign
+    if (simulationGeneratedNumber.value.isNotEmpty) {
+      await morseService.playMorse(simulationGeneratedNumber.value);
+    } else if (simulationGeneratedCallsign.value.isNotEmpty) {
+      await morseService.playMorse(simulationGeneratedCallsign.value);
+    }
   }
 
   /// Simulation SEND: Send response matching the info line format
   void _simulationSend(QsoFormController c) {
+    // Mark that user has responded (stop CQ repeat)
+    simulationAwaitingResponse.value = false;
+
     // Focus NR/INFO field immediately
     c.infoFocus.requestFocus();
     c.setActiveTextField(c.receivedInfoController);
@@ -473,6 +689,145 @@ class QsoForm extends StatelessWidget {
 
     // Play the message
     await morseService.playMorse(message);
+    if (!simulationActive.value) return;
+
+    // Wait 400ms then answer with 599 + 3-digit number + code (2 letters + 5 numbers)
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!simulationActive.value) return;
+
+    // Set random WPM from configured range for the answer
+    final minWpm = simulationMinWpm.value.round();
+    final maxWpm = simulationMaxWpm.value.round();
+    final randomWpm = minWpm + Random().nextInt(maxWpm - minWpm + 1);
+    morseService.setWpm(randomWpm);
+
+    // Generate 3-digit random number (100-999)
+    final randomNumber = (100 + Random().nextInt(900)).toString();
+    simulationGeneratedNumber.value = randomNumber;
+
+    // Generate code: 2 letters + 5 numbers
+    final random = Random();
+    final letter1 = String.fromCharCode(65 + random.nextInt(26));
+    final letter2 = String.fromCharCode(65 + random.nextInt(26));
+    final numbers = List.generate(5, (_) => random.nextInt(10)).join();
+    final randomCode = '$letter1$letter2$numbers';
+    simulationGeneratedCode.value = randomCode;
+
+    // Build RST: 599, or 5NN if 9/N is active
+    String stationRst = '599';
+    if (c.nineIsN.value) {
+      stationRst = '5NN';
+    }
+
+    // Apply 0/T transformation to number if active
+    String numberToSend = randomNumber;
+    if (c.zeroIsT.value) {
+      numberToSend = randomNumber.replaceAll('0', 'T');
+    }
+
+    // Play: RST + number + code
+    await morseService.playMorse('$stationRst $numberToSend $randomCode');
+  }
+
+  /// Simulation SAVE: Show comparison, send TU, and trigger next station
+  void _simulationSave(QsoFormController c) {
+    // Get user input
+    final userCallsign = c.callsignController.text.trim().toUpperCase();
+    final userNumber = c.receivedInfoController.text.trim();
+    final userCode = c.xtra1Controller.text.trim().toUpperCase();
+
+    // Get generated values
+    final actualCallsign = simulationGeneratedCallsign.value;
+    final actualNumber = simulationGeneratedNumber.value;
+    final actualCode = simulationGeneratedCode.value;
+
+    // Create result and add to list
+    final result = SimulationResult(
+      actualCallsign: actualCallsign,
+      userCallsign: userCallsign,
+      actualNumber: actualNumber,
+      userNumber: userNumber,
+      actualCode: actualCode,
+      userCode: userCode,
+    );
+    simulationResultList.add(result);
+
+    // Clear form for next QSO
+    c.callsignController.clear();
+    c.receivedInfoController.clear();
+    c.xtra1Controller.clear();
+    simulationGeneratedCallsign.value = '';
+    simulationGeneratedNumber.value = '';
+    simulationGeneratedCode.value = '';
+
+    // Increment counter if active
+    if (c.useCounter.value && c.xtra2Controller.text.isNotEmpty) {
+      final current = int.tryParse(c.xtra2Controller.text) ?? 0;
+      c.xtra2Controller.text = (current + 1).toString().padLeft(3, '0');
+    }
+
+    // Focus callsign field for next QSO
+    c.callsignFocus.requestFocus();
+    c.setActiveTextField(c.callsignController);
+
+    // Increment save count and send TU (+ CQ every 3rd click)
+    simulationSaveCount.value++;
+    _playSimulationSaveSequence(c);
+  }
+
+  /// Async helper for SAVE sequence - sends TU and triggers next station
+  Future<void> _playSimulationSaveSequence(QsoFormController c) async {
+    final morseService = MorseAudioService();
+
+    // Use my CQ speed for sending
+    morseService.setWpm(simulationCqWpm.value.round());
+
+    // Build message: TU, and every 3rd save add CQ DE MYCALL
+    final myCallsign = c.selectedMyCallsign.value ?? '';
+    String message = 'TU';
+    if (simulationSaveCount.value % 3 == 0) {
+      message = 'TU CQ DE $myCallsign';
+      if (c.sendK.value) {
+        message += ' K';
+      }
+    }
+
+    // Play TU message
+    await morseService.playMorse(message);
+    if (!simulationActive.value) return;
+
+    // Wait 300ms then next station answers
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!simulationActive.value) return;
+
+    // Set random WPM from configured range for the answer
+    final minWpm = simulationMinWpm.value.round();
+    final maxWpm = simulationMaxWpm.value.round();
+    final randomWpm = minWpm + Random().nextInt(maxWpm - minWpm + 1);
+    morseService.setWpm(randomWpm);
+
+    // Generate new random callsign
+    final randomCallsign = morseService.generateRandomCallsign();
+    simulationGeneratedCallsign.value = randomCallsign;
+    simulationGeneratedNumber.value = '';
+    simulationAwaitingResponse.value = true;
+
+    // Play new random callsign
+    await morseService.playMorse(randomCallsign);
+    if (!simulationActive.value) return;
+
+    // Wait and repeat if user hasn't responded
+    const double answerDelayFactor = 40;
+    const int answerDelayBase = 800;
+    final delayMs =
+        answerDelayBase +
+        (answerDelayFactor * (38 - simulationCqWpm.value)).round();
+    await Future.delayed(Duration(milliseconds: delayMs + 500));
+    if (!simulationActive.value) return;
+
+    if (simulationAwaitingResponse.value) {
+      await morseService.playMorse(randomCallsign);
+    }
   }
 
   Future<void> _showDatePicker(
@@ -827,11 +1182,12 @@ class QsoForm extends StatelessWidget {
                 }),
                 SizedBox(height: P.lineSpacing),
 
-                // Service indicators row (hidden in contest mode)
+                // Service indicators row (hidden in contest mode and simulation mode)
                 Obx(() {
                   // Trigger rebuild when callsign changes
                   c.selectedMyCallsign.value;
                   if (c.contestMode.value) return const SizedBox.shrink();
+                  if (simulationActive.value && simulationPaused.value) return const SizedBox.shrink();
                   final isDark = Get.find<ThemeController>().isDarkMode.value;
                   return Container(
                     color: isDark ? Colors.black : AppColors.surfaceLight,
@@ -851,21 +1207,7 @@ class QsoForm extends StatelessWidget {
                         _buildServiceIndicator('eQSL', c.useEqsl, c.eqslFlash),
                         const SizedBox(width: 2),
                         _buildServiceIndicator('LoTW', c.useLotw, c.lotwFlash),
-                        const SizedBox(width: 2),
-                        const Text(
-                          '|',
-                          style: TextStyle(fontSize: 8, color: Colors.red),
-                        ),
-                        const SizedBox(width: 2),
-                        _buildStatusIndicator('SPC', c.useSpacebarToggle),
-                        const SizedBox(width: 2),
-                        _buildStatusIndicator('2nd', c.toggleSecondField),
-                        const SizedBox(width: 2),
-                        const Text(
-                          '|',
-                          style: TextStyle(fontSize: 8, color: Colors.red),
-                        ),
-                        const SizedBox(width: 2),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: TextFormField(
                             controller: c.locatorController,
@@ -1193,11 +1535,11 @@ class QsoForm extends StatelessWidget {
                   ],
                 ),
                 SizedBox(height: P.lineSpacing),
-                // Row 2: Received Info, Xtra1, Xtra2
+                // Row 2: Received Info, Xtra1, SPC, 2nd
                 Row(
                   children: [
                     Expanded(
-                      flex: 6,
+                      flex: 5,
                       child: Padding(
                         padding: P.fieldTight,
                         child: Obx(
@@ -1216,7 +1558,7 @@ class QsoForm extends StatelessWidget {
                       ),
                     ),
                     Expanded(
-                      flex: 6,
+                      flex: 5,
                       child: Padding(
                         padding: P.fieldTight,
                         child: Obx(
@@ -1233,6 +1575,54 @@ class QsoForm extends StatelessWidget {
                         ),
                       ),
                     ),
+                    // SPC toggle button
+                    Obx(() {
+                      // Access callsignList to rebuild when settings change
+                      Get.find<DatabaseController>().callsignList.length;
+                      return GestureDetector(
+                        onTap: () => c.toggleSpacebarSetting(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                          margin: const EdgeInsets.only(left: 2),
+                          decoration: BoxDecoration(
+                            color: c.useSpacebarToggle ? Colors.green : Colors.grey.shade400,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'SPC',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    // 2nd toggle button
+                    Obx(() {
+                      // Access callsignList to rebuild when settings change
+                      Get.find<DatabaseController>().callsignList.length;
+                      return GestureDetector(
+                        onTap: () => c.toggleSecondFieldSetting(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                          margin: const EdgeInsets.only(left: 2),
+                          decoration: BoxDecoration(
+                            color: c.toggleSecondField ? Colors.green : Colors.grey.shade400,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            '2nd',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
                   ],
                 ),
                 // Row 3: Date, Time (hidden when hideDateTime is true)
@@ -1304,107 +1694,117 @@ class QsoForm extends StatelessWidget {
                         ),
                 ),
                 SizedBox(height: P.lineSpacing),
-                // Row 4: Band, Mode dropdowns
-                Row(
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: P.field,
-                        child: Obx(() {
-                          // Access selectedMyCallsign to rebuild when it changes
-                          c.selectedMyCallsign.value;
-                          final currentBands = c.bands;
-                          final currentBand =
-                              currentBands.contains(c.selectedBand.value)
-                              ? c.selectedBand.value
-                              : currentBands.first;
-                          return DropdownButtonFormField<String>(
-                            value: currentBand,
-                            decoration: InputStyles.dropdown('Band'),
-                            items: currentBands.map((band) {
-                              return DropdownMenuItem(
-                                value: band,
-                                child: Text(band),
-                              );
-                            }).toList(),
-                            onChanged: c.onBandChanged,
-                          );
-                        }),
+                // Row 4: Band, Mode dropdowns (hidden in simulation mode)
+                Obx(() {
+                  if (simulationActive.value && simulationPaused.value) {
+                    return const SizedBox.shrink();
+                  }
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: Padding(
+                          padding: P.field,
+                          child: Obx(() {
+                            // Access selectedMyCallsign to rebuild when it changes
+                            c.selectedMyCallsign.value;
+                            final currentBands = c.bands;
+                            final currentBand =
+                                currentBands.contains(c.selectedBand.value)
+                                ? c.selectedBand.value
+                                : currentBands.first;
+                            return DropdownButtonFormField<String>(
+                              value: currentBand,
+                              decoration: InputStyles.dropdown('Band'),
+                              items: currentBands.map((band) {
+                                return DropdownMenuItem(
+                                  value: band,
+                                  child: Text(band),
+                                );
+                              }).toList(),
+                              onChanged: c.onBandChanged,
+                            );
+                          }),
+                        ),
                       ),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: P.field,
-                        child: Obx(() {
-                          // Access selectedMyCallsign to rebuild when it changes
-                          c.selectedMyCallsign.value;
-                          final currentModes = c.modes;
-                          final currentMode =
-                              currentModes.contains(c.selectedMode.value)
-                              ? c.selectedMode.value
-                              : currentModes.first;
-                          return DropdownButtonFormField<String>(
-                            value: currentMode,
-                            decoration: InputStyles.dropdown('Mode'),
-                            items: currentModes.map((mode) {
-                              return DropdownMenuItem(
-                                value: mode,
-                                child: Text(mode),
-                              );
-                            }).toList(),
-                            onChanged: c.onModeChanged,
-                          );
-                        }),
+                      Expanded(
+                        child: Padding(
+                          padding: P.field,
+                          child: Obx(() {
+                            // Access selectedMyCallsign to rebuild when it changes
+                            c.selectedMyCallsign.value;
+                            final currentModes = c.modes;
+                            final currentMode =
+                                currentModes.contains(c.selectedMode.value)
+                                ? c.selectedMode.value
+                                : currentModes.first;
+                            return DropdownButtonFormField<String>(
+                              value: currentMode,
+                              decoration: InputStyles.dropdown('Mode'),
+                              items: currentModes.map((mode) {
+                                return DropdownMenuItem(
+                                  value: mode,
+                                  child: Text(mode),
+                                );
+                              }).toList(),
+                              onChanged: c.onModeChanged,
+                            );
+                          }),
+                        ),
                       ),
-                    ),
-                    // Sat dropdown (only visible when showSatellite is enabled)
-                    Obx(
-                      () => c.showSatellite.value
-                          ? Expanded(
-                              child: Padding(
-                                padding: P.field,
-                                child: DropdownButtonFormField<String>(
-                                  value: c.selectedSatellite.value,
-                                  decoration: InputStyles.dropdown('Sat'),
-                                  isExpanded: true,
-                                  items: c.satellites.map((sat) {
-                                    return DropdownMenuItem(
-                                      value: sat,
-                                      child: Text(
-                                        sat,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: c.onSatelliteChanged,
+                      // Sat dropdown (only visible when showSatellite is enabled)
+                      Obx(
+                        () => c.showSatellite.value
+                            ? Expanded(
+                                child: Padding(
+                                  padding: P.field,
+                                  child: DropdownButtonFormField<String>(
+                                    value: c.selectedSatellite.value,
+                                    decoration: InputStyles.dropdown('Sat'),
+                                    isExpanded: true,
+                                    items: c.satellites.map((sat) {
+                                      return DropdownMenuItem(
+                                        value: sat,
+                                        child: Text(
+                                          sat,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: c.onSatelliteChanged,
+                                  ),
                                 ),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                    // Count textbox (only visible when useCounter is enabled)
-                    Obx(
-                      () => c.useCounter.value
-                          ? Padding(
-                              padding: P.fieldTight,
-                              child: SizedBox(
-                                width: 60,
-                                child: TextFormField(
-                                  controller: c.xtra2Controller,
-                                  decoration: InputStyles.dropdown('count'),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      // Count textbox (only visible when useCounter is enabled)
+                      Obx(
+                        () => c.useCounter.value
+                            ? Padding(
+                                padding: P.fieldTight,
+                                child: SizedBox(
+                                  width: 60,
+                                  child: TextFormField(
+                                    controller: c.xtra2Controller,
+                                    decoration: InputStyles.dropdown('count'),
+                                  ),
                                 ),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
-                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  );
+                }),
                 SizedBox(height: P.lineSpacing),
                 // Dynamic button rows based on saved layout
                 Obx(() {
                   // If simulation is active and playing, show simulation buttons
                   if (simulationActive.value && simulationPaused.value) {
-                    return _buildSimulationButtons(c);
+                    return Column(
+                      children: [
+                        _buildSimulationButtons(c),
+                        _buildSimulationResults(),
+                      ],
+                    );
                   }
 
                   final btController = Get.find<BluetoothController>();

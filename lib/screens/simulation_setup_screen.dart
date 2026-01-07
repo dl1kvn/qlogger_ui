@@ -1,16 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import '../services/morse_audio_service.dart';
 
 // Global simulation state
 final _simulationStorage = GetStorage();
-final simulationActive = (_simulationStorage.read<bool>('simulation_active') ?? false).obs;
+final simulationActive = false.obs; // Always start inactive, not persisted
 final simulationPaused = false.obs;
 final simulationMinWpm = (_simulationStorage.read<double>('simulation_min_wpm') ?? 20.0).obs;
 final simulationMaxWpm = (_simulationStorage.read<double>('simulation_max_wpm') ?? 28.0).obs;
 final simulationCqWpm = (_simulationStorage.read<double>('simulation_cq_wpm') ?? 24.0).obs;
 final simulationFrequency = (_simulationStorage.read<double>('simulation_frequency') ?? 600.0).obs;
 final simulationGeneratedCallsign = ''.obs;
+final simulationGeneratedNumber = ''.obs;
+final simulationGeneratedCode = ''.obs; // 2 letters + 5 numbers
+final simulationAwaitingResponse = false.obs;
+final simulationResultList = <SimulationResult>[].obs;
+final simulationSaveCount = 0.obs;
+
+class SimulationResult {
+  final String actualCallsign;
+  final String userCallsign;
+  final String actualNumber;
+  final String userNumber;
+  final String actualCode;
+  final String userCode;
+
+  SimulationResult({
+    required this.actualCallsign,
+    required this.userCallsign,
+    required this.actualNumber,
+    required this.userNumber,
+    required this.actualCode,
+    required this.userCode,
+  });
+
+  bool get callsignCorrect => actualCallsign.toUpperCase() == userCallsign.toUpperCase();
+  bool get numberCorrect => actualNumber == userNumber;
+  bool get codeCorrect => actualCode.toUpperCase() == userCode.toUpperCase();
+}
 
 class SimulationSetupScreen extends StatelessWidget {
   const SimulationSetupScreen({super.key});
@@ -18,7 +46,6 @@ class SimulationSetupScreen extends StatelessWidget {
   void _startSimulation() {
     simulationActive.value = true;
     simulationPaused.value = true;
-    _simulationStorage.write('simulation_active', true);
     Get.back();
   }
 
@@ -148,7 +175,8 @@ class SimulationSetupScreen extends StatelessWidget {
                 if (simulationActive.value) {
                   simulationActive.value = false;
                   simulationPaused.value = false;
-                  _simulationStorage.write('simulation_active', false);
+                  // Stop any playing audio immediately
+                  MorseAudioService().stop();
                 } else {
                   _startSimulation();
                 }

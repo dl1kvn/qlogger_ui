@@ -298,6 +298,38 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     }
   }
 
+  /// Toggle spacebar setting for current callsign
+  Future<void> toggleSpacebarSetting() async {
+    final callsign = selectedMyCallsign.value;
+    if (callsign == null) return;
+    try {
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
+      final newValue = cs.useSpacebarToggle == 1 ? 0 : 1;
+      final updated = cs.copyWith(useSpacebarToggle: newValue);
+      await _dbController.updateCallsign(updated);
+    } catch (_) {
+      // Callsign not found
+    }
+  }
+
+  /// Toggle second field setting for current callsign
+  Future<void> toggleSecondFieldSetting() async {
+    final callsign = selectedMyCallsign.value;
+    if (callsign == null) return;
+    try {
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
+      final newValue = cs.toggleSecondField == 1 ? 0 : 1;
+      final updated = cs.copyWith(toggleSecondField: newValue);
+      await _dbController.updateCallsign(updated);
+    } catch (_) {
+      // Callsign not found
+    }
+  }
+
   /// Check if CQ zones auto-fill is enabled
   bool get useCqzones {
     final callsign = selectedMyCallsign.value;
