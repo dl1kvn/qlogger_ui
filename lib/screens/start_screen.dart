@@ -6,6 +6,7 @@ import '../controllers/theme_controller.dart';
 import '../ui/componends/qso_form.dart';
 import '../ui/theme/tokens.dart';
 import '../widgets/bluetooth_dialog.dart';
+import 'simulation_setup_screen.dart';
 
 Widget qloggerSpeedWordmark({double fontSize = 24, Color? color}) {
   return Builder(
@@ -23,7 +24,7 @@ Widget qloggerSpeedWordmark({double fontSize = 24, Color? color}) {
           Transform.translate(
             offset: const Offset(-4, 0),
             child: Text(
-              'q',
+              'qlogger',
               maxLines: 1,
               overflow: TextOverflow.clip,
               style: TextStyle(
@@ -38,7 +39,7 @@ Widget qloggerSpeedWordmark({double fontSize = 24, Color? color}) {
           Transform.translate(
             offset: const Offset(-2, 0),
             child: Text(
-              'q',
+              'qlogger',
               maxLines: 1,
               overflow: TextOverflow.clip,
               style: TextStyle(
@@ -51,7 +52,7 @@ Widget qloggerSpeedWordmark({double fontSize = 24, Color? color}) {
           ),
           // Main text
           Text(
-            'q',
+            'qlogger',
             maxLines: 1,
             overflow: TextOverflow.clip,
             style: TextStyle(
@@ -96,97 +97,122 @@ class StartScreen extends StatelessWidget {
     final btController = Get.find<BluetoothController>();
     final themeController = Get.find<ThemeController>();
 
-    return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 36,
-        title: qloggerSpeedWordmark(fontSize: 18),
-        actions: [
-          // Bluetooth status icon
-          Obx(
-            () => _appBarIconButton(
-              icon: btController.isConnected.value
-                  ? Icons.bluetooth_connected
-                  : Icons.bluetooth,
-              color: btController.isConnected.value
-                  ? Colors.green
-                  : Colors.grey,
-              onTap: () => Get.dialog(BluetoothDialog()),
-            ),
-          ),
-          // Date/Time toggle icon
-          Obx(
-            () => _appBarIconButton(
-              icon: Icons.access_time,
-              color: c.hideDateTime.value ? Colors.red : Colors.green,
-              onTap: c.toggleHideDateTime,
-            ),
-          ),
-          // Contest mode toggle icon
-          Obx(
-            () => _appBarIconButton(
-              icon: Icons.emoji_events,
-              color: c.contestMode.value ? Colors.green : Colors.grey,
-              onTap: c.toggleContestMode,
-            ),
-          ),
-          // Serial number (NR) toggle
-          Obx(
-            () => _appBarIconButton(
-              icon: Icons.tag,
-              color: c.useCounter.value ? Colors.green : Colors.grey,
-              onTap: c.toggleUseCounter,
-            ),
-          ),
-          // Custom keyboard toggle icon
-          Obx(
-            () => _appBarIconButton(
-              icon: Icons.keyboard,
-              color: c.useCustomKeyboard.value ? Colors.green : Colors.grey,
-              onTap: c.toggleCustomKeyboard,
-            ),
-          ),
-          // Theme toggle icon
-          Obx(
-            () => _appBarIconButton(
-              icon: themeController.isDarkMode.value
-                  ? Icons.light_mode
-                  : Icons.dark_mode,
-              color: Colors.grey,
-              onTap: themeController.toggleTheme,
-            ),
-          ),
-          // Stay awake toggle icon
-          Obx(
-            () => _appBarIconButton(
-              icon: Icons.coffee,
-              color: c.stayAwake.value ? Colors.green : Colors.grey,
-              onTap: c.toggleStayAwake,
-            ),
-          ),
-          Obx(
-            () => Padding(
-              padding: const EdgeInsets.only(left: 6, right: 4),
-              child: Center(
-                child: Text(
-                  c.currentUtcTime.value,
-                  style: const TextStyle(fontSize: 12),
-                ),
+    final iconRow = PreferredSize(
+      preferredSize: const Size.fromHeight(32),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            // Bluetooth status icon
+            Obx(
+              () => _appBarIconButton(
+                icon: btController.isConnected.value
+                    ? Icons.bluetooth_connected
+                    : Icons.bluetooth,
+                color: btController.isConnected.value
+                    ? Colors.green
+                    : Colors.grey,
+                onTap: () => Get.dialog(BluetoothDialog()),
               ),
             ),
-          ),
-          Obx(
-            () => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Icon(
+            // Date/Time toggle icon
+            Obx(
+              () => _appBarIconButton(
+                icon: Icons.access_time,
+                color: c.hideDateTime.value ? Colors.red : Colors.green,
+                onTap: c.toggleHideDateTime,
+              ),
+            ),
+            // Serial number (NR) toggle
+            Obx(
+              () => _appBarIconButton(
+                icon: Icons.tag,
+                color: c.useCounter.value ? Colors.green : Colors.grey,
+                onTap: c.toggleUseCounter,
+              ),
+            ),
+            // Theme toggle icon
+            Obx(
+              () => _appBarIconButton(
+                icon: themeController.isDarkMode.value
+                    ? Icons.light_mode
+                    : Icons.dark_mode,
+                color: Colors.grey,
+                onTap: themeController.toggleTheme,
+              ),
+            ),
+            // Stay awake toggle icon
+            Obx(
+              () => _appBarIconButton(
+                icon: Icons.coffee,
+                color: c.stayAwake.value ? Colors.green : Colors.grey,
+                onTap: c.toggleStayAwake,
+              ),
+            ),
+            // Simulation mode toggle
+            Obx(
+              () => _appBarIconButton(
+                icon: Icons.play_arrow,
+                color: simulationActive.value ? Colors.green : Colors.grey,
+                onTap: () {
+                  if (simulationActive.value) {
+                    // Stop simulation
+                    simulationActive.value = false;
+                    simulationPaused.value = false;
+                  } else {
+                    // Start simulation
+                    simulationActive.value = true;
+                    simulationPaused.value = true;
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return Obx(
+      () => Scaffold(
+        appBar: AppBar(
+          toolbarHeight: 36,
+          title: Row(
+            children: [
+              qloggerSpeedWordmark(fontSize: 18),
+              const Spacer(),
+              // Contest mode toggle icon
+              _appBarIconButton(
+                icon: Icons.emoji_events,
+                color: c.contestMode.value ? Colors.green : Colors.grey,
+                onTap: c.toggleContestMode,
+              ),
+              const SizedBox(width: 4),
+              // Custom keyboard toggle icon
+              _appBarIconButton(
+                icon: Icons.keyboard,
+                color: c.useCustomKeyboard.value ? Colors.green : Colors.grey,
+                onTap: c.toggleCustomKeyboard,
+              ),
+              const SizedBox(width: 8),
+              // UTC Time
+              Text(
+                '${c.currentUtcTime.value} UTC',
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(width: 8),
+              // Wifi indicator
+              Icon(
                 c.hasInternet.value ? Icons.wifi : Icons.wifi_off,
-                size: 16,
+                size: 18,
                 color: c.hasInternet.value ? Colors.green : Colors.red,
               ),
-            ),
+            ],
           ),
-        ],
+          bottom: c.contestMode.value ? null : iconRow,
+        ),
+        body: Padding(padding: Insets.page, child: const QsoForm()),
       ),
-      body: Padding(padding: Insets.page, child: const QsoForm()),
     );
   }
 }

@@ -92,11 +92,15 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       final newText = text.replaceRange(selection.start, selection.end, char);
       controller.value = TextEditingValue(
         text: newText,
-        selection: TextSelection.collapsed(offset: selection.start + char.length),
+        selection: TextSelection.collapsed(
+          offset: selection.start + char.length,
+        ),
       );
     } else {
       controller.text = text + char;
-      controller.selection = TextSelection.collapsed(offset: controller.text.length);
+      controller.selection = TextSelection.collapsed(
+        offset: controller.text.length,
+      );
     }
 
     // Trigger the appropriate onChanged handler to handle spacebar toggle
@@ -119,7 +123,11 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     if (selection.isValid && selection.start > 0) {
       if (selection.start == selection.end) {
         // No selection, delete char before cursor
-        final newText = text.replaceRange(selection.start - 1, selection.start, '');
+        final newText = text.replaceRange(
+          selection.start - 1,
+          selection.start,
+          '',
+        );
         controller.value = TextEditingValue(
           text: newText,
           selection: TextSelection.collapsed(offset: selection.start - 1),
@@ -145,7 +153,8 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     return ['no sat', ...dbSatellites];
   }
 
-  List<String> get myCallsigns => _dbController.callsignList.map((c) => c.callsign).toList();
+  List<String> get myCallsigns =>
+      _dbController.callsignList.map((c) => c.callsign).toList();
 
   List<String> get modes {
     final callsign = selectedMyCallsign.value;
@@ -153,7 +162,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       return ['CW', 'SSB'];
     }
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       return cs.modesList.isNotEmpty ? List.from(cs.modesList) : ['CW', 'SSB'];
     } catch (_) {
       return ['CW', 'SSB'];
@@ -166,8 +177,12 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       return List.from(_defaultBands);
     }
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
-      return cs.bandsList.isNotEmpty ? List.from(cs.bandsList) : List.from(_defaultBands);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
+      return cs.bandsList.isNotEmpty
+          ? List.from(cs.bandsList)
+          : List.from(_defaultBands);
     } catch (_) {
       return List.from(_defaultBands);
     }
@@ -177,7 +192,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return false;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       return cs.useclublog == 1;
     } catch (_) {
       return false;
@@ -188,7 +205,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return false;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       return cs.useeqsl == 1;
     } catch (_) {
       return false;
@@ -199,7 +218,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return false;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       return cs.uselotw == 1;
     } catch (_) {
       return false;
@@ -211,7 +232,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return false;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       // Only check if certificate exists - password can be empty
       return cs.lotwcert.isNotEmpty;
     } catch (_) {
@@ -224,7 +247,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return false;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       return cs.clublogemail.isNotEmpty && cs.clublogpw.isNotEmpty;
     } catch (_) {
       return false;
@@ -236,7 +261,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return false;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       return cs.eqslpassword.isNotEmpty;
     } catch (_) {
       return false;
@@ -248,7 +275,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return false;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       return cs.useSpacebarToggle == 1;
     } catch (_) {
       return false;
@@ -260,7 +289,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return false;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       return cs.toggleSecondField == 1;
     } catch (_) {
       return false;
@@ -272,7 +303,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return false;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       return cs.useCqzones == 1;
     } catch (_) {
       return false;
@@ -284,7 +317,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return false;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       return cs.useItuzones == 1;
     } catch (_) {
       return false;
@@ -301,7 +336,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       return;
     }
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       hideDateTime.value = cs.hideDateTime == 1;
     } catch (_) {
       hideDateTime.value = false;
@@ -312,7 +349,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       final newValue = cs.hideDateTime == 1 ? 0 : 1;
       final updated = cs.copyWith(hideDateTime: newValue);
       await _dbController.updateCallsign(updated);
@@ -330,7 +369,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       return;
     }
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       showSatellite.value = cs.showSatellite == 1;
     } catch (_) {
       showSatellite.value = false;
@@ -341,7 +382,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       final newValue = cs.showSatellite == 1 ? 0 : 1;
       final updated = cs.copyWith(showSatellite: newValue);
       await _dbController.updateCallsign(updated);
@@ -380,7 +423,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       return;
     }
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       contestMode.value = cs.contestMode == 1;
     } catch (_) {
       contestMode.value = false;
@@ -391,7 +436,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       final newValue = cs.contestMode == 1 ? 0 : 1;
       final updated = cs.copyWith(contestMode: newValue);
       await _dbController.updateCallsign(updated);
@@ -411,7 +458,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       return;
     }
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       cwPreController.text = cs.cwPre;
       cwPostController.text = cs.cwPost;
     } catch (_) {
@@ -424,7 +473,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       final updated = cs.copyWith(cwPre: value);
       await _dbController.updateCallsign(updated);
     } catch (_) {}
@@ -434,7 +485,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       final updated = cs.copyWith(cwPost: value);
       await _dbController.updateCallsign(updated);
     } catch (_) {}
@@ -447,7 +500,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       return;
     }
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       cwCustomText.value = cs.cwCustomText;
     } catch (_) {
       cwCustomText.value = '';
@@ -461,7 +516,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       return;
     }
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       cwCqText.value = cs.cwCqText;
     } catch (_) {
       cwCqText.value = '';
@@ -475,7 +532,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       return;
     }
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       useGermanKeyboard.value = cs.useGermanKeyboard == 1;
     } catch (_) {
       useGermanKeyboard.value = false;
@@ -488,14 +547,24 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   void _loadButtonLayout() {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) {
-      buttonLayoutRows.value = [['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM'], ['SEND', 'CLR', 'SAVE'], []];
+      buttonLayoutRows.value = [
+        ['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM'],
+        ['SEND', 'CLR', 'SAVE'],
+        [],
+      ];
       return;
     }
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       buttonLayoutRows.value = cs.buttonLayoutRows;
     } catch (_) {
-      buttonLayoutRows.value = [['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM'], ['SEND', 'CLR', 'SAVE'], []];
+      buttonLayoutRows.value = [
+        ['CQ', 'MY', 'CALL', 'RPT', 'CUSTOM'],
+        ['SEND', 'CLR', 'SAVE'],
+        [],
+      ];
     }
   }
 
@@ -512,8 +581,14 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     _updateDateTime();
     _updateUtcTime();
     _checkInternet();
-    _utcTimer = Timer.periodic(const Duration(seconds: 1), (_) => _updateUtcTime());
-    _internetTimer = Timer.periodic(const Duration(seconds: 10), (_) => _checkInternet());
+    _utcTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _updateUtcTime(),
+    );
+    _internetTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _checkInternet(),
+    );
     _initSelectedCallsign();
     _loadSavedLocator();
     ever(_dbController.callsignList, (_) => _initSelectedCallsign());
@@ -558,7 +633,8 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
 
   void _updateUtcTime() {
     final now = DateTime.now().toUtc();
-    currentUtcTime.value = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}utc';
+    currentUtcTime.value =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
   }
 
   Future<void> _checkInternet() async {
@@ -578,7 +654,8 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
 
   void _initSelectedCallsign() {
     if (myCallsigns.isNotEmpty) {
-      if (selectedMyCallsign.value == null || !myCallsigns.contains(selectedMyCallsign.value)) {
+      if (selectedMyCallsign.value == null ||
+          !myCallsigns.contains(selectedMyCallsign.value)) {
         selectedMyCallsign.value = myCallsigns.first;
       }
       // Ensure selected mode is valid for current callsign
@@ -608,7 +685,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       _isLoadingCheckboxes = true;
       useCounter.value = cs.useCounter == 1;
       zeroIsT.value = cs.zeroIsT == 1;
@@ -631,7 +710,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return;
     try {
-      final cs = _dbController.callsignList.firstWhere((c) => c.callsign == callsign);
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
       final updated = cs.copyWith(
         useCounter: useCounter.value ? 1 : 0,
         zeroIsT: zeroIsT.value ? 1 : 0,
@@ -648,8 +729,10 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
 
   void _updateDateTime() {
     final now = DateTime.now().toUtc();
-    dateController.text = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
-    timeController.text = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+    dateController.text =
+        '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+    timeController.text =
+        '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
   }
 
   void onBandChanged(String? value) {
@@ -725,8 +808,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       // Get contestId from selected activation
       String contestId = '';
       if (selectedActivationId.value != null) {
-        final activation = _dbController.activationList
-            .firstWhereOrNull((a) => a.id == selectedActivationId.value);
+        final activation = _dbController.activationList.firstWhereOrNull(
+          (a) => a.id == selectedActivationId.value,
+        );
         if (activation != null) {
           contestId = activation.contestId;
         }
@@ -804,9 +888,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       final myCall = selectedMyCallsign.value;
       if (myCall == null || myCall.isEmpty) return;
 
-      final cs = _dbController.callsignList.where(
-        (c) => c.callsign == myCall,
-      ).firstOrNull;
+      final cs = _dbController.callsignList
+          .where((c) => c.callsign == myCall)
+          .firstOrNull;
       if (cs == null) return;
 
       final (activationType, activationReference) = _getActivationData();
@@ -856,9 +940,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       final myCall = selectedMyCallsign.value;
       if (myCall == null || myCall.isEmpty) return;
 
-      final cs = _dbController.callsignList.where(
-        (c) => c.callsign == myCall,
-      ).firstOrNull;
+      final cs = _dbController.callsignList
+          .where((c) => c.callsign == myCall)
+          .firstOrNull;
       if (cs == null) return;
 
       await ClublogService.uploadQso(
@@ -898,9 +982,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       final myCall = selectedMyCallsign.value;
       if (myCall == null || myCall.isEmpty) return;
 
-      final cs = _dbController.callsignList.where(
-        (c) => c.callsign == myCall,
-      ).firstOrNull;
+      final cs = _dbController.callsignList
+          .where((c) => c.callsign == myCall)
+          .firstOrNull;
       if (cs == null) return;
 
       final (activationType, activationReference) = _getActivationData();
@@ -1038,7 +1122,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       receivedInfoController.text = '';
       return;
     }
-    final ituZone = AmateurRadioCountryList.getItuZone(text.toUpperCase().trim());
+    final ituZone = AmateurRadioCountryList.getItuZone(
+      text.toUpperCase().trim(),
+    );
     if (ituZone != null) {
       receivedInfoController.text = ituZone;
     } else {
@@ -1131,7 +1217,10 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       );
 
       // Calculate Maidenhead locator
-      final locator = _calculateMaidenhead(position.latitude, position.longitude);
+      final locator = _calculateMaidenhead(
+        position.latitude,
+        position.longitude,
+      );
       locatorController.text = locator;
       _saveLocator(locator);
     } catch (e) {
@@ -1269,7 +1358,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
         if (activation.reference.isNotEmpty) {
           final showRefPrefix = _storage.read<bool>('show_ref_prefix') ?? false;
           if (showRefPrefix) {
-            parts.add('${activation.type.toUpperCase()} ${activation.reference.replaceAll('-', '')}');
+            parts.add(
+              '${activation.type.toUpperCase()} ${activation.reference.replaceAll('-', '')}',
+            );
           } else {
             parts.add(activation.reference.replaceAll('-', ''));
           }
@@ -1324,7 +1415,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   void sendHisCall() {
     final btController = Get.find<BluetoothController>();
     if (callsignController.text.isNotEmpty) {
-      btController.sendMorseString(callsignController.text.trim().toUpperCase());
+      btController.sendMorseString(
+        callsignController.text.trim().toUpperCase(),
+      );
     } else {
       btController.sendMorseString('?');
     }

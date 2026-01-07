@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
+import '../screens/simulation_setup_screen.dart' show simulationFrequency;
 
 class MorseAudioService {
   static final MorseAudioService _instance = MorseAudioService._internal();
@@ -24,7 +25,7 @@ class MorseAudioService {
 
   // Audio parameters
   final int _sampleRate = 44100;
-  final double _frequency = 600.0; // Hz - typical CW tone
+  double get _frequency => simulationFrequency.value; // Hz - from simulation settings
 
   // Morse code dictionary
   static const Map<String, String> _morseCode = {

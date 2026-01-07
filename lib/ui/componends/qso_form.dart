@@ -10,7 +10,7 @@ import '../../controllers/bluetooth_controller.dart';
 import '../../controllers/theme_controller.dart';
 import '../../screens/my_callsigns_screen.dart';
 import 'dart:math' show Random;
-import '../../screens/setup_screen.dart'
+import '../../screens/simulation_setup_screen.dart'
     show
         simulationActive,
         simulationPaused,
@@ -357,8 +357,18 @@ class QsoForm extends StatelessWidget {
     );
   }
 
-  /// Simulation CQ: Send CQ + mycallsign (once), then wait 3s and play random callsign
-  Future<void> _simulationCq(QsoFormController c) async {
+  /// Simulation CQ: Send CQ + mycallsign (once), then wait and play random callsign
+  void _simulationCq(QsoFormController c) {
+    // Focus callsign field immediately
+    c.callsignFocus.requestFocus();
+    c.setActiveTextField(c.callsignController);
+
+    // Run morse playback asynchronously in background
+    _playSimulationCqSequence(c);
+  }
+
+  /// Async helper for CQ sequence (runs in background)
+  Future<void> _playSimulationCqSequence(QsoFormController c) async {
     final morseService = MorseAudioService();
 
     // Set CQ WPM from configured slider
@@ -376,14 +386,11 @@ class QsoForm extends StatelessWidget {
     await morseService.playMorse(cqMessage);
 
     // Wait before the answer comes - delay depends on CQ speed
-    // Formula: baseDelay + factor * (maxWpm - currentWpm)
-    // Adjust _answerDelayFactor to tune the delay to your liking
-    const double _answerDelayFactor =
-        40; // ms per WPM difference - adjust this!
-    const int _answerDelayBase = 800; // minimum delay in ms
+    const double answerDelayFactor = 40; // ms per WPM difference
+    const int answerDelayBase = 800; // minimum delay in ms
     final delayMs =
-        _answerDelayBase +
-        (_answerDelayFactor * (38 - simulationCqWpm.value)).round();
+        answerDelayBase +
+        (answerDelayFactor * (38 - simulationCqWpm.value)).round();
     await Future.delayed(Duration(milliseconds: delayMs));
 
     // Set random WPM from configured range for the answer
@@ -401,7 +408,17 @@ class QsoForm extends StatelessWidget {
   }
 
   /// Simulation SEND: Send response matching the info line format
-  Future<void> _simulationSend(QsoFormController c) async {
+  void _simulationSend(QsoFormController c) {
+    // Focus NR/INFO field immediately
+    c.infoFocus.requestFocus();
+    c.setActiveTextField(c.receivedInfoController);
+
+    // Run morse playback asynchronously in background
+    _playSimulationSendSequence(c);
+  }
+
+  /// Async helper for SEND sequence (runs in background)
+  Future<void> _playSimulationSendSequence(QsoFormController c) async {
     final morseService = MorseAudioService();
 
     // Use my CQ speed for sending
@@ -1034,82 +1051,52 @@ class QsoForm extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Simulation pause/play toggle (only visible when simulation is active)
-                    Obx(
-                      () => simulationActive.value
-                          ? Padding(
-                              padding: P.icon,
-                              child: GestureDetector(
-                                onTap: () {
-                                  simulationPaused.value =
-                                      !simulationPaused.value;
-                                  if (!simulationPaused.value) {
-                                    // Stopped - clear generated callsign
-                                    simulationGeneratedCallsign.value = '';
-                                    MorseAudioService().stop();
+                    // QRZ Icon - opens qrz.com when callsign is valid
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: c.callsignController,
+                      builder: (context, value, child) {
+                        // Callsign regex: at least one letter, one digit, and one letter
+                        final callsignRegex = RegExp(
+                          r'^[A-Z0-9]{1,3}[0-9][A-Z0-9]*[A-Z]$',
+                          caseSensitive: false,
+                        );
+                        final isValidCallsign = callsignRegex.hasMatch(
+                          value.text.trim(),
+                        );
+                        return Padding(
+                          padding: P.icon,
+                          child: GestureDetector(
+                            onTap: isValidCallsign
+                                ? () async {
+                                    final call = value.text
+                                        .trim()
+                                        .toUpperCase();
+                                    final url = Uri(
+                                      scheme: 'https',
+                                      host: 'www.qrz.com',
+                                      path: '/db/$call',
+                                    );
+                                    try {
+                                      await launchUrl(
+                                        url,
+                                        mode: LaunchMode
+                                            .externalApplication,
+                                      );
+                                    } catch (e) {
+                                      debugPrint(e.toString());
+                                    }
                                   }
-                                },
-                                child: Icon(
-                                  simulationPaused.value
-                                      ? Icons.pause
-                                      : Icons.play_arrow,
-                                  size: 28,
-                                  color: Colors.red,
-                                ),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                    // QRZ Icon - opens qrz.com when callsign is valid (hidden when simulation is active)
-                    Obx(
-                      () => simulationActive.value
-                          ? const SizedBox.shrink()
-                          : ValueListenableBuilder<TextEditingValue>(
-                              valueListenable: c.callsignController,
-                              builder: (context, value, child) {
-                                // Callsign regex: at least one letter, one digit, and one letter
-                                final callsignRegex = RegExp(
-                                  r'^[A-Z0-9]{1,3}[0-9][A-Z0-9]*[A-Z]$',
-                                  caseSensitive: false,
-                                );
-                                final isValidCallsign = callsignRegex.hasMatch(
-                                  value.text.trim(),
-                                );
-                                return Padding(
-                                  padding: P.icon,
-                                  child: GestureDetector(
-                                    onTap: isValidCallsign
-                                        ? () async {
-                                            final call = value.text
-                                                .trim()
-                                                .toUpperCase();
-                                            final url = Uri(
-                                              scheme: 'https',
-                                              host: 'www.qrz.com',
-                                              path: '/db/$call',
-                                            );
-                                            try {
-                                              await launchUrl(
-                                                url,
-                                                mode: LaunchMode
-                                                    .externalApplication,
-                                              );
-                                            } catch (e) {
-                                              debugPrint(e.toString());
-                                            }
-                                          }
-                                        : null,
-                                    child: Icon(
-                                      Icons.emoji_people,
-                                      size: 28,
-                                      color: isValidCallsign
-                                          ? Colors.blueAccent
-                                          : Colors.grey.shade400,
-                                    ),
-                                  ),
-                                );
-                              },
+                                : null,
+                            child: Icon(
+                              Icons.emoji_people,
+                              size: 28,
+                              color: isValidCallsign
+                                  ? Colors.blueAccent
+                                  : Colors.grey.shade400,
                             ),
+                          ),
+                        );
+                      },
                     ),
                     // Callsign
                     Expanded(
