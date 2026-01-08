@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import '../services/morse_audio_service.dart';
 
 // Global simulation state
 final _simulationStorage = GetStorage();
@@ -42,12 +41,6 @@ class SimulationResult {
 
 class SimulationSetupScreen extends StatelessWidget {
   const SimulationSetupScreen({super.key});
-
-  void _startSimulation() {
-    simulationActive.value = true;
-    simulationPaused.value = true;
-    Get.back();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -168,30 +161,6 @@ class SimulationSetupScreen extends StatelessWidget {
                 ),
               ],
             )),
-            const Spacer(),
-            // Start/Stop Simulation Button
-            Obx(() => FilledButton.icon(
-              onPressed: () {
-                if (simulationActive.value) {
-                  simulationActive.value = false;
-                  simulationPaused.value = false;
-                  // Stop any playing audio immediately
-                  MorseAudioService().stop();
-                } else {
-                  _startSimulation();
-                }
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: simulationActive.value ? Colors.red : Colors.green,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              icon: Icon(simulationActive.value ? Icons.stop : Icons.play_arrow),
-              label: Text(
-                simulationActive.value ? 'Stop Simulation' : 'Start Simulation',
-                style: const TextStyle(fontSize: 18),
-              ),
-            )),
-            const SizedBox(height: 16),
           ],
         ),
       ),

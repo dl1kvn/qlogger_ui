@@ -227,6 +227,48 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     }
   }
 
+  /// Toggle Clublog setting for current callsign
+  Future<void> toggleClublog() async {
+    final callsign = selectedMyCallsign.value;
+    if (callsign == null) return;
+    try {
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
+      final newValue = cs.useclublog == 1 ? 0 : 1;
+      final updated = cs.copyWith(useclublog: newValue);
+      await _dbController.updateCallsign(updated);
+    } catch (_) {}
+  }
+
+  /// Toggle eQSL setting for current callsign
+  Future<void> toggleEqsl() async {
+    final callsign = selectedMyCallsign.value;
+    if (callsign == null) return;
+    try {
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
+      final newValue = cs.useeqsl == 1 ? 0 : 1;
+      final updated = cs.copyWith(useeqsl: newValue);
+      await _dbController.updateCallsign(updated);
+    } catch (_) {}
+  }
+
+  /// Toggle LoTW setting for current callsign
+  Future<void> toggleLotw() async {
+    final callsign = selectedMyCallsign.value;
+    if (callsign == null) return;
+    try {
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
+      final newValue = cs.uselotw == 1 ? 0 : 1;
+      final updated = cs.copyWith(uselotw: newValue);
+      await _dbController.updateCallsign(updated);
+    } catch (_) {}
+  }
+
   /// Check if LoTW has P12 certificate configured
   bool get hasLotwKey {
     final callsign = selectedMyCallsign.value;
@@ -270,64 +312,78 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  /// Check if spacebar toggle is enabled
+  /// Get the current jump mode: 'none', 'SPC', '2nd', or 'jump'
+  /// Mapping: none=(0,0), SPC=(1,0), 2nd=(1,1), jump=(0,1)
+  String get jumpMode {
+    final callsign = selectedMyCallsign.value;
+    if (callsign == null) return 'none';
+    try {
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
+      final spc = cs.useSpacebarToggle == 1;
+      final sec = cs.toggleSecondField == 1;
+      if (!spc && !sec) return 'none';
+      if (spc && !sec) return 'SPC';
+      if (spc && sec) return '2nd';
+      if (!spc && sec) return 'jump';
+      return 'none';
+    } catch (_) {
+      return 'none';
+    }
+  }
+
+  /// Set the jump mode for current callsign
+  Future<void> setJumpMode(String mode) async {
+    final callsign = selectedMyCallsign.value;
+    if (callsign == null) return;
+    try {
+      final cs = _dbController.callsignList.firstWhere(
+        (c) => c.callsign == callsign,
+      );
+      int spc = 0;
+      int sec = 0;
+      switch (mode) {
+        case 'SPC':
+          spc = 1;
+          sec = 0;
+          break;
+        case '2nd':
+          spc = 1;
+          sec = 1;
+          break;
+        case 'jump':
+          spc = 0;
+          sec = 1;
+          break;
+        default: // 'none'
+          spc = 0;
+          sec = 0;
+      }
+      final updated = cs.copyWith(
+        useSpacebarToggle: spc,
+        toggleSecondField: sec,
+      );
+      await _dbController.updateCallsign(updated);
+    } catch (_) {
+      // Callsign not found
+    }
+  }
+
+  /// Check if spacebar toggle is enabled (SPC or 2nd mode)
   bool get useSpacebarToggle {
-    final callsign = selectedMyCallsign.value;
-    if (callsign == null) return false;
-    try {
-      final cs = _dbController.callsignList.firstWhere(
-        (c) => c.callsign == callsign,
-      );
-      return cs.useSpacebarToggle == 1;
-    } catch (_) {
-      return false;
-    }
+    final mode = jumpMode;
+    return mode == 'SPC' || mode == '2nd';
   }
 
-  /// Check if toggle second field is enabled
+  /// Check if toggle second field is enabled (2nd mode)
   bool get toggleSecondField {
-    final callsign = selectedMyCallsign.value;
-    if (callsign == null) return false;
-    try {
-      final cs = _dbController.callsignList.firstWhere(
-        (c) => c.callsign == callsign,
-      );
-      return cs.toggleSecondField == 1;
-    } catch (_) {
-      return false;
-    }
+    return jumpMode == '2nd';
   }
 
-  /// Toggle spacebar setting for current callsign
-  Future<void> toggleSpacebarSetting() async {
-    final callsign = selectedMyCallsign.value;
-    if (callsign == null) return;
-    try {
-      final cs = _dbController.callsignList.firstWhere(
-        (c) => c.callsign == callsign,
-      );
-      final newValue = cs.useSpacebarToggle == 1 ? 0 : 1;
-      final updated = cs.copyWith(useSpacebarToggle: newValue);
-      await _dbController.updateCallsign(updated);
-    } catch (_) {
-      // Callsign not found
-    }
-  }
-
-  /// Toggle second field setting for current callsign
-  Future<void> toggleSecondFieldSetting() async {
-    final callsign = selectedMyCallsign.value;
-    if (callsign == null) return;
-    try {
-      final cs = _dbController.callsignList.firstWhere(
-        (c) => c.callsign == callsign,
-      );
-      final newValue = cs.toggleSecondField == 1 ? 0 : 1;
-      final updated = cs.copyWith(toggleSecondField: newValue);
-      await _dbController.updateCallsign(updated);
-    } catch (_) {
-      // Callsign not found
-    }
+  /// Check if jump mode is enabled
+  bool get isJumpMode {
+    return jumpMode == 'jump';
   }
 
   /// Check if CQ zones auto-fill is enabled
@@ -436,11 +492,20 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   /// Use German keyboard layout (Y/Z swapped)
   final useGermanKeyboard = false.obs;
 
-  /// Stay awake / keep screen on
-  final stayAwake = false.obs;
+  /// Stay awake / keep screen on (persisted, default true)
+  late final RxBool stayAwake;
+
+  void _initStayAwake() {
+    final savedValue = _storage.read<bool>('prevent_sleep') ?? true;
+    stayAwake = savedValue.obs;
+    if (stayAwake.value) {
+      WakelockPlus.enable();
+    }
+  }
 
   void toggleStayAwake() {
     stayAwake.value = !stayAwake.value;
+    _storage.write('prevent_sleep', stayAwake.value);
     if (stayAwake.value) {
       WakelockPlus.enable();
     } else {
@@ -610,6 +675,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   void onInit() {
     super.onInit();
     WidgetsBinding.instance.addObserver(this);
+    _initStayAwake();
     _updateDateTime();
     _updateUtcTime();
     _checkInternet();
@@ -1103,8 +1169,8 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
         TextPosition(offset: callsignController.text.length),
       );
     }
-    // Handle spacebar toggle
-    if (useSpacebarToggle && value.contains(' ')) {
+    // Handle spacebar toggle (SPC, 2nd, or jump mode)
+    if ((useSpacebarToggle || isJumpMode) && value.contains(' ')) {
       callsignController.text = callsignController.text.replaceAll(' ', '');
       callsignController.selection = TextSelection.fromPosition(
         TextPosition(offset: callsignController.text.length),
@@ -1164,8 +1230,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  /// Handle spacebar in NR/INFO field
+  /// Handle spacebar in NR/INFO field and jump mode letter detection
   void onInfoChanged(String value) {
+    // Handle spacebar toggle (SPC or 2nd mode)
     if (useSpacebarToggle && value.contains(' ')) {
       receivedInfoController.text = value.replaceAll(' ', '');
       receivedInfoController.selection = TextSelection.fromPosition(
@@ -1178,12 +1245,41 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
         callsignFocus.requestFocus();
         setActiveTextField(callsignController);
       }
+      return;
+    }
+    // Handle jump mode
+    if (isJumpMode && value.isNotEmpty) {
+      final lastChar = value[value.length - 1];
+      // Space in jump mode: jump to xtra
+      if (lastChar == ' ') {
+        receivedInfoController.text = value.replaceAll(' ', '');
+        receivedInfoController.selection = TextSelection.fromPosition(
+          TextPosition(offset: receivedInfoController.text.length),
+        );
+        xtra1Focus.requestFocus();
+        setActiveTextField(xtra1Controller);
+        return;
+      }
+      // Letter in jump mode: move letter to xtra and jump there
+      if (RegExp(r'[A-Za-z]').hasMatch(lastChar)) {
+        receivedInfoController.text = value.substring(0, value.length - 1);
+        receivedInfoController.selection = TextSelection.fromPosition(
+          TextPosition(offset: receivedInfoController.text.length),
+        );
+        xtra1Controller.text = xtra1Controller.text + lastChar.toUpperCase();
+        xtra1Controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: xtra1Controller.text.length),
+        );
+        xtra1Focus.requestFocus();
+        setActiveTextField(xtra1Controller);
+      }
     }
   }
 
   /// Handle spacebar in Xtra1 field
   void onXtra1Changed(String value) {
-    if (useSpacebarToggle && value.contains(' ')) {
+    // Handle spacebar in 2nd or jump mode
+    if ((useSpacebarToggle || isJumpMode) && value.contains(' ')) {
       xtra1Controller.text = value.replaceAll(' ', '');
       xtra1Controller.selection = TextSelection.fromPosition(
         TextPosition(offset: xtra1Controller.text.length),
@@ -1378,6 +1474,12 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
         count = count.replaceAll('0', 'T');
       }
       parts.add(count);
+    }
+
+    // Locator (if send_locator is enabled)
+    final sendLocator = _storage.read<bool>('send_locator') ?? false;
+    if (sendLocator && locatorController.text.isNotEmpty) {
+      parts.add(locatorController.text.trim().toUpperCase());
     }
 
     // Activation reference

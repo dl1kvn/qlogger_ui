@@ -425,72 +425,100 @@ class ActivationsScreen extends StatelessWidget {
                             ],
                           ],
                         ),
+                        // Description line
+                        if (activation.description.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            activation.description,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        // Toggle and action icons row
                         const SizedBox(height: 4),
-                        // Second line: icons
                         Row(
                           children: [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.visibility_outlined,
-                                size: 20,
-                              ),
-                              tooltip: 'View Details',
-                              onPressed: () {
-                                Get.to(
-                                  () => ActivationDetailScreen(
-                                    activation: activation,
-                                  ),
+                            GestureDetector(
+                              onTap: () async {
+                                final updated = activation.copyWith(
+                                  showInDropdown: !activation.showInDropdown,
                                 );
+                                await dbController.updateActivation(updated);
                               },
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 36,
-                                minHeight: 36,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: activation.showInDropdown
+                                          ? Colors.green
+                                          : Colors.grey.shade400,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 2,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.visibility,
+                                        size: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    activation.showInDropdown ? 'active' : 'not active',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.edit_outlined, size: 20),
-                              tooltip: 'Edit',
-                              onPressed: () {
-                                Get.to(
-                                  () => ActivationEditScreen(
-                                    activation: activation,
-                                  ),
-                                );
-                              },
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 36,
-                                minHeight: 36,
+                            const SizedBox(width: 12),
+                            Text('|', style: TextStyle(color: Colors.grey.shade400)),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => Get.to(
+                                () => ActivationDetailScreen(activation: activation),
                               ),
+                              child: Icon(Icons.visibility_outlined, size: 20, color: Colors.grey.shade600),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.list_alt, size: 20),
-                              tooltip: 'View Logs',
-                              onPressed: () {
-                                Get.to(
-                                  () => LogEntryScreen(
-                                    initialActivationId: activation.id,
-                                  ),
-                                );
-                              },
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 36,
-                                minHeight: 36,
+                            const SizedBox(width: 8),
+                            Text('|', style: TextStyle(color: Colors.grey.shade400)),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => Get.to(
+                                () => ActivationEditScreen(activation: activation),
                               ),
+                              child: Icon(Icons.edit_outlined, size: 20, color: Colors.grey.shade600),
                             ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                size: 20,
-                                color: Colors.red,
+                            const SizedBox(width: 8),
+                            Text('|', style: TextStyle(color: Colors.grey.shade400)),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => Get.to(
+                                () => LogEntryScreen(initialActivationId: activation.id),
                               ),
-                              tooltip: 'Delete',
-                              onPressed: () {
+                              child: Icon(Icons.list_alt, size: 20, color: Colors.grey.shade600),
+                            ),
+                            const SizedBox(width: 8),
+                            Text('|', style: TextStyle(color: Colors.grey.shade400)),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () {
                                 bool deleteQsos = false;
                                 showDialog(
                                   context: context,
@@ -502,8 +530,7 @@ class ActivationsScreen extends StatelessWidget {
                                       ),
                                       content: Column(
                                         mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Delete ${activation.type.toUpperCase()} ${activation.reference}?',
@@ -520,8 +547,7 @@ class ActivationsScreen extends StatelessWidget {
                                               'Delete all corresponding QSOs?',
                                             ),
                                             contentPadding: EdgeInsets.zero,
-                                            controlAffinity:
-                                                ListTileControlAffinity.leading,
+                                            controlAffinity: ListTileControlAffinity.leading,
                                             dense: true,
                                           ),
                                         ],
@@ -537,26 +563,15 @@ class ActivationsScreen extends StatelessWidget {
                                           ),
                                           onPressed: () async {
                                             if (deleteQsos) {
-                                              // Delete all QSOs with this activation_id
-                                              final qsosToDelete = dbController
-                                                  .qsoList
-                                                  .where(
-                                                    (q) =>
-                                                        q.activationId ==
-                                                        activation.id,
-                                                  )
+                                              final qsosToDelete = dbController.qsoList
+                                                  .where((q) => q.activationId == activation.id)
                                                   .map((q) => q.id!)
                                                   .toList();
                                               if (qsosToDelete.isNotEmpty) {
-                                                await dbController
-                                                    .deleteQsosBatch(
-                                                      qsosToDelete,
-                                                    );
+                                                await dbController.deleteQsosBatch(qsosToDelete);
                                               }
                                             }
-                                            await dbController.deleteActivation(
-                                              activation.id!,
-                                            );
+                                            await dbController.deleteActivation(activation.id!);
                                             Get.back();
                                           },
                                           child: const Text('Delete'),
@@ -566,55 +581,7 @@ class ActivationsScreen extends StatelessWidget {
                                   ),
                                 );
                               },
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 36,
-                                minHeight: 36,
-                              ),
-                            ),
-                          ],
-                        ),
-                        // Third line: description
-                        if (activation.description.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            activation.description,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        // Fourth line: show in dropdown checkbox
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: Checkbox(
-                                value: activation.showInDropdown,
-                                onChanged: (value) async {
-                                  final updated = activation.copyWith(
-                                    showInDropdown: value ?? true,
-                                  );
-                                  await dbController.updateActivation(updated);
-                                },
-                                visualDensity: VisualDensity.compact,
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Show in logpage dropdown',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
+                              child: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
                             ),
                           ],
                         ),

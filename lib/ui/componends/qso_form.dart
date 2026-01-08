@@ -33,13 +33,28 @@ import '../theme/color_scheme.dart';
 import 'labeled_checkbox.dart';
 import 'custom_keyboard.dart';
 
+// Uppercase text formatter
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
+    );
+  }
+}
+
 // Info line color settings with persistence
 final _storage = GetStorage();
+// Send locator toggle
+final _sendLocator = (_storage.read<bool>('send_locator') ?? false).obs;
 final _infoLineBgColor = (_storage.read<int>('info_line_bg') ?? 0xFFFFE0B2).obs;
 final _infoLineTextColor =
     (_storage.read<int>('info_line_text') ?? 0xFF000000).obs;
 final _showRefPrefix = (_storage.read<bool>('show_ref_prefix') ?? false).obs;
-
 
 void _showInfoLineSettings(BuildContext context) {
   final isDark = Get.find<ThemeController>().isDarkMode.value;
@@ -182,31 +197,101 @@ void _showInfoLineSettings(BuildContext context) {
   );
 }
 
+// External keyboard mapping storage
+final _extKeyStorage = GetStorage();
+
+String _keyEventToString(KeyEvent event) {
+  final List<String> parts = [];
+  if (HardwareKeyboard.instance.isControlPressed) parts.add('Ctrl');
+  if (HardwareKeyboard.instance.isAltPressed) parts.add('Alt');
+  if (HardwareKeyboard.instance.isShiftPressed) parts.add('Shift');
+  if (HardwareKeyboard.instance.isMetaPressed) parts.add('Meta');
+
+  final key = event.logicalKey;
+  String keyLabel = key.keyLabel;
+  if (keyLabel.isEmpty) keyLabel = key.debugName ?? 'Unknown';
+
+  // Don't add modifier keys as main key
+  if (key != LogicalKeyboardKey.controlLeft &&
+      key != LogicalKeyboardKey.controlRight &&
+      key != LogicalKeyboardKey.altLeft &&
+      key != LogicalKeyboardKey.altRight &&
+      key != LogicalKeyboardKey.shiftLeft &&
+      key != LogicalKeyboardKey.shiftRight &&
+      key != LogicalKeyboardKey.metaLeft &&
+      key != LogicalKeyboardKey.metaRight) {
+    parts.add(keyLabel);
+  }
+  return parts.join('+');
+}
+
+KeyEventResult _handleExternalKeyboard(KeyEvent event, QsoFormController c) {
+  if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+  // ESC always triggers CLR
+  if (event.logicalKey == LogicalKeyboardKey.escape) {
+    c.clearForm();
+    return KeyEventResult.handled;
+  }
+
+  final keyString = _keyEventToString(event);
+  if (keyString.isEmpty) return KeyEventResult.ignored;
+
+  // Check mappings
+  final mappings = {
+    'cq': c.sendCq,
+    'mycall': c.sendMyCall,
+    'custom': c.sendCwCustomText,
+    'rpt': c.sendRprtOnly,
+    'call': c.sendHisCall,
+    'send': c.sendCallPlusRprt,
+  };
+
+  for (final entry in mappings.entries) {
+    final savedKey = _extKeyStorage.read<String>('ext_key_${entry.key}');
+    if (savedKey != null && savedKey == keyString) {
+      entry.value();
+      return KeyEventResult.handled;
+    }
+  }
+
+  return KeyEventResult.ignored;
+}
+
 class QsoForm extends StatelessWidget {
   const QsoForm({super.key});
 
-  Widget _buildServiceIndicator(
+  Widget _buildServiceToggle(
     String label,
     bool active,
     RxBool flashTrigger,
+    VoidCallback onTap,
   ) {
     return Obx(() {
       final isFlashing = flashTrigger.value;
       return TweenAnimationBuilder<double>(
-        tween: Tween(begin: 1.0, end: isFlashing ? 1.5 : 1.0),
+        tween: Tween(begin: 1.0, end: isFlashing ? 1.1 : 1.0),
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutBack,
         builder: (context, scale, child) {
           return Transform.scale(
             scale: scale,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: isFlashing
-                    ? Colors.green.shade300
-                    : (active ? Colors.green : Colors.grey.shade400),
+            child: GestureDetector(
+              onTap: onTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: active ? Colors.green : Colors.red,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
           );
@@ -223,34 +308,34 @@ class QsoForm extends StatelessWidget {
             : c.cwCqText.value.length > 6
             ? '${c.cwCqText.value.substring(0, 6)}…'
             : c.cwCqText.value,
-        'color': Colors.green,
+        'color': Colors.green.shade700,
         'onPressed': c.sendCq,
       },
       'MY': {
         'label': c.selectedMyCallsign.value ?? 'MY',
-        'color': Colors.grey,
+        'color': Colors.grey.shade700,
         'onPressed': c.sendMyCall,
       },
       'CALL': {
         'label': 'CALL?',
-        'color': Colors.blueGrey,
+        'color': Colors.blueGrey.shade700,
         'onPressed': c.sendHisCall,
       },
       'RPT': {
         'label': 'RPT#',
-        'color': Colors.cyan,
+        'color': Colors.cyan.shade700,
         'onPressed': c.sendRprtOnly,
       },
       'CUSTOM': {
         'label': c.cwCustomText.value.length > 6
             ? '${c.cwCustomText.value.substring(0, 6)}…'
             : c.cwCustomText.value,
-        'color': Colors.purple,
+        'color': Colors.purple.shade700,
         'onPressed': c.sendCwCustomText,
       },
       'SEND': {
         'label': 'SEND',
-        'color': Colors.deepOrangeAccent,
+        'color': Colors.deepOrange.shade700,
         'onPressed': c.sendCallPlusRprt,
       },
       'CLR': {
@@ -275,6 +360,8 @@ class QsoForm extends StatelessWidget {
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+        elevation: 0,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
       child: Text(
         config['label'] as String,
@@ -395,10 +482,7 @@ class QsoForm extends StatelessWidget {
               children: [
                 const Text(
                   'Simulation Results',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
                 GestureDetector(
                   onTap: () => simulationResultList.clear(),
@@ -587,7 +671,7 @@ class QsoForm extends StatelessWidget {
     }
   }
 
-  /// Simulation ? Button: User sends "?" and station repeats callsign
+  /// Simulation ? Button: User sends "?" and station repeats number and code
   void _simulationRepeat(QsoFormController c) {
     _playSimulationRepeatSequence(c);
   }
@@ -611,10 +695,13 @@ class QsoForm extends StatelessWidget {
     final randomWpm = minWpm + Random().nextInt(maxWpm - minWpm + 1);
     morseService.setWpm(randomWpm);
 
-    // If number was already sent, repeat the number
+    // If number and code were already sent, repeat them
     // Otherwise repeat the callsign
-    if (simulationGeneratedNumber.value.isNotEmpty) {
-      await morseService.playMorse(simulationGeneratedNumber.value);
+    if (simulationGeneratedNumber.value.isNotEmpty &&
+        simulationGeneratedCode.value.isNotEmpty) {
+      await morseService.playMorse(
+        '${simulationGeneratedNumber.value} ${simulationGeneratedCode.value}',
+      );
     } else if (simulationGeneratedCallsign.value.isNotEmpty) {
       await morseService.playMorse(simulationGeneratedCallsign.value);
     }
@@ -915,171 +1002,201 @@ class QsoForm extends StatelessWidget {
     final c = Get.put(QsoFormController());
     final width = MediaQuery.of(context).size.width;
 
-    return Column(
-      children: [
-        Expanded(
-          child: Form(
-            key: c.formKey,
-            child: Column(
-              children: [
-                // Top row: Bluetooth, My Callsign, Status
-                Obx(() {
-                  final isDark = Get.find<ThemeController>().isDarkMode.value;
-                  return Container(
-                    color: isDark ? Colors.black : AppColors.surfaceLight,
-                    child: Row(
-                      children: [
-                        // My Callsign dropdown
-                        Expanded(
-                          flex: 5,
-                          child: Padding(
-                            padding: P.field,
-                            child: Obx(
-                              () => c.myCallsigns.isEmpty
-                                  ? TextButton(
-                                      onPressed: () => Get.to(
-                                        () => const MyCallsignsScreen(),
+    return Focus(
+      autofocus: false,
+      onKeyEvent: (node, event) => _handleExternalKeyboard(event, c),
+      child: Column(
+        children: [
+          Expanded(
+            child: Form(
+              key: c.formKey,
+              child: Column(
+                children: [
+                  // Top row: Bluetooth, My Callsign, Status
+                  Obx(() {
+                    final isDark = Get.find<ThemeController>().isDarkMode.value;
+                    return Container(
+                      color: isDark ? Colors.black : AppColors.surfaceLight,
+                      child: Row(
+                        children: [
+                          // My Callsign dropdown
+                          Expanded(
+                            flex: 5,
+                            child: Padding(
+                              padding: P.field,
+                              child: Obx(
+                                () => c.myCallsigns.isEmpty
+                                    ? TextButton(
+                                        onPressed: () => Get.to(
+                                          () => const MyCallsignsScreen(),
+                                        ),
+                                        child: const Text('add call'),
+                                      )
+                                    : DropdownButtonFormField<String>(
+                                        value: c.selectedMyCallsign.value,
+                                        decoration: InputStyles.dropdownFilled(
+                                          '',
+                                          AppColors.dropdownCallsign,
+                                        ),
+                                        isExpanded: true,
+                                        dropdownColor:
+                                            AppColors.dropdownCallsign,
+                                        style: const TextStyle(
+                                          color: Colors.black87,
+                                        ),
+                                        items: c.myCallsigns.map((call) {
+                                          return DropdownMenuItem(
+                                            value: call,
+                                            child: Text(call),
+                                          );
+                                        }).toList(),
+                                        onChanged: c.onMyCallsignChanged,
                                       ),
-                                      child: const Text('add call'),
-                                    )
-                                  : DropdownButtonFormField<String>(
-                                      value: c.selectedMyCallsign.value,
-                                      decoration: InputStyles.dropdown(''),
-                                      isExpanded: true,
-                                      items: c.myCallsigns.map((call) {
-                                        return DropdownMenuItem(
-                                          value: call,
-                                          child: Text(call),
-                                        );
-                                      }).toList(),
-                                      onChanged: c.onMyCallsignChanged,
-                                    ),
+                              ),
                             ),
                           ),
-                        ),
-                        // Activation dropdown
-                        Expanded(
-                          flex: 5,
-                          child: Padding(
-                            padding: P.field,
-                            child: Obx(() {
-                              final dbController =
-                                  Get.find<DatabaseController>();
-                              final activations = dbController.activationList
-                                  .where((a) => a.showInDropdown)
-                                  .toList();
-                              return DropdownButtonFormField<int?>(
-                                value: c.selectedActivationId.value,
-                                decoration: InputStyles.dropdown(''),
-                                isExpanded: true,
-                                itemHeight: 56,
-                                items: [
-                                  const DropdownMenuItem<int?>(
-                                    value: null,
-                                    child: Text('no activation'),
+                          // Activation dropdown
+                          Expanded(
+                            flex: 5,
+                            child: Padding(
+                              padding: P.field,
+                              child: Obx(() {
+                                final dbController =
+                                    Get.find<DatabaseController>();
+                                final activations = dbController.activationList
+                                    .where((a) => a.showInDropdown)
+                                    .toList();
+                                return DropdownButtonFormField<int?>(
+                                  value: c.selectedActivationId.value,
+                                  decoration: InputStyles.dropdownFilled(
+                                    '',
+                                    AppColors.dropdownActivation,
                                   ),
-                                  ...activations.map((a) {
-                                    return DropdownMenuItem<int?>(
-                                      value: a.id,
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            ActivationModel.getIcon(a.type),
-                                            size: 16,
-                                            color: ActivationModel.getColor(
-                                              a.type,
+                                  isExpanded: true,
+                                  dropdownColor: AppColors.dropdownActivation,
+                                  style: const TextStyle(
+                                    color: Colors.black87,
+                                  ),
+                                  itemHeight: 56,
+                                  selectedItemBuilder: (context) {
+                                    return [
+                                      const Text('no activation'),
+                                      ...activations.map((a) {
+                                        return Text(
+                                          a.reference,
+                                          overflow: TextOverflow.ellipsis,
+                                        );
+                                      }),
+                                    ];
+                                  },
+                                  items: [
+                                    const DropdownMenuItem<int?>(
+                                      value: null,
+                                      child: Text('no activation'),
+                                    ),
+                                    ...activations.map((a) {
+                                      return DropdownMenuItem<int?>(
+                                        value: a.id,
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              ActivationModel.getIcon(a.type),
+                                              size: 16,
+                                              color: ActivationModel.getColor(
+                                                a.type,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
-                                                  a.reference,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                                if (a.title.isNotEmpty)
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
                                                   Text(
-                                                    a.title,
-                                                    style: const TextStyle(
-                                                      fontSize: 10,
-                                                      color: Colors.grey,
-                                                    ),
+                                                    a.reference,
                                                     overflow:
                                                         TextOverflow.ellipsis,
                                                   ),
-                                              ],
-                                            ),
-                                          ),
-                                          if (a.imagePath != null) ...[
-                                            const SizedBox(width: 4),
-                                            ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(3),
-                                              child: Image.file(
-                                                File(a.imagePath!),
-                                                width: 20,
-                                                height: 20,
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) =>
-                                                    const SizedBox.shrink(),
+                                                  if (a.title.isNotEmpty)
+                                                    Text(
+                                                      a.title,
+                                                      style: const TextStyle(
+                                                        fontSize: 10,
+                                                        color: Colors.grey,
+                                                      ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                ],
                                               ),
                                             ),
+                                            if (a.imagePath != null) ...[
+                                              const SizedBox(width: 4),
+                                              ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(3),
+                                                child: Image.file(
+                                                  File(a.imagePath!),
+                                                  width: 20,
+                                                  height: 20,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) =>
+                                                      const SizedBox.shrink(),
+                                                ),
+                                              ),
+                                            ],
                                           ],
-                                        ],
-                                      ),
-                                    );
-                                  }),
-                                ],
-                                onChanged: (value) {
-                                  c.selectedActivationId.value = value;
-                                },
-                              );
-                            }),
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                  onChanged: (value) {
+                                    c.selectedActivationId.value = value;
+                                  },
+                                );
+                              }),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                SizedBox(height: P.lineSpacing),
-                // Status text
-                Obx(() {
-                  final bgColor = Color(_infoLineBgColor.value);
-                  final textColor = Color(_infoLineTextColor.value);
-                  return Container(
-                    width: double.infinity,
-                    color: bgColor,
-                    margin: P.field,
-                    padding: P.fieldBig,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ValueListenableBuilder<TextEditingValue>(
-                            valueListenable: c.callsignController,
-                            builder: (context, callsignValue, child) =>
-                                ValueListenableBuilder<TextEditingValue>(
-                                  valueListenable: c.rstOutController,
-                                  builder: (context, rstValue, child) =>
+                        ],
+                      ),
+                    );
+                  }),
+                  SizedBox(height: P.lineSpacing),
+                  // Status text
+                  Obx(() {
+                    final bgColor = Color(_infoLineBgColor.value);
+                    final textColor = Color(_infoLineTextColor.value);
+                    return Container(
+                      width: double.infinity,
+                      color: bgColor,
+                      margin: P.field,
+                      padding: P.fieldBig,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: ValueListenableBuilder<TextEditingValue>(
+                              valueListenable: c.callsignController,
+                              builder: (context, callsignValue, child) => ValueListenableBuilder<TextEditingValue>(
+                                valueListenable: c.rstOutController,
+                                builder: (context, rstValue, child) => ValueListenableBuilder<TextEditingValue>(
+                                  valueListenable: c.xtra2Controller,
+                                  builder: (context, countValue, child) =>
                                       ValueListenableBuilder<TextEditingValue>(
-                                        valueListenable: c.xtra2Controller,
-                                        builder: (context, countValue, child) =>
+                                        valueListenable: c.cwPreController,
+                                        builder: (context, preValue, child) =>
                                             ValueListenableBuilder<
                                               TextEditingValue
                                             >(
                                               valueListenable:
-                                                  c.cwPreController,
-                                              builder: (context, preValue, child) =>
+                                                  c.cwPostController,
+                                              builder: (context, postValue, child) =>
                                                   ValueListenableBuilder<
                                                     TextEditingValue
                                                   >(
                                                     valueListenable:
-                                                        c.cwPostController,
-                                                    builder: (context, postValue, child) => Obx(() {
+                                                        c.locatorController,
+                                                    builder: (context, locatorValue, child) => Obx(() {
                                                       final activationId = c
                                                           .selectedActivationId
                                                           .value;
@@ -1135,6 +1252,14 @@ class QsoForm extends StatelessWidget {
                                                         }
                                                         countText = ' $count';
                                                       }
+                                                      String locatorText = '';
+                                                      if (_sendLocator.value &&
+                                                          locatorValue
+                                                              .text
+                                                              .isNotEmpty) {
+                                                        locatorText =
+                                                            ' ${locatorValue.text.toUpperCase()}';
+                                                      }
                                                       String preText =
                                                           preValue
                                                               .text
@@ -1152,7 +1277,7 @@ class QsoForm extends StatelessWidget {
                                                           ? ' BK'
                                                           : '';
                                                       return Text(
-                                                        '${callsignValue.text.toUpperCase()} $preText$rstText$countText$activationRef$postText$bkText'
+                                                        '${callsignValue.text.toUpperCase()} $preText$rstText$countText$locatorText$activationRef$postText$bkText'
                                                             .trim(),
                                                         style: FormStyles.info
                                                             .copyWith(
@@ -1166,814 +1291,891 @@ class QsoForm extends StatelessWidget {
                                             ),
                                       ),
                                 ),
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => _showInfoLineSettings(context),
-                          child: Icon(
-                            Icons.settings,
-                            size: 18,
-                            color: textColor.withOpacity(0.6),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                SizedBox(height: P.lineSpacing),
-
-                // Service indicators row (hidden in contest mode and simulation mode)
-                Obx(() {
-                  // Trigger rebuild when callsign changes
-                  c.selectedMyCallsign.value;
-                  if (c.contestMode.value) return const SizedBox.shrink();
-                  if (simulationActive.value && simulationPaused.value) return const SizedBox.shrink();
-                  final isDark = Get.find<ThemeController>().isDarkMode.value;
-                  return Container(
-                    color: isDark ? Colors.black : AppColors.surfaceLight,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        _buildServiceIndicator(
-                          'Clublog',
-                          c.useClublog,
-                          c.clublogFlash,
-                        ),
-                        const SizedBox(width: 2),
-                        _buildServiceIndicator('eQSL', c.useEqsl, c.eqslFlash),
-                        const SizedBox(width: 2),
-                        _buildServiceIndicator('LoTW', c.useLotw, c.lotwFlash),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: TextFormField(
-                            controller: c.locatorController,
-                            textCapitalization: TextCapitalization.characters,
-                            style: const TextStyle(fontSize: 12),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 0,
-                              ),
-                              isDense: true,
-                              suffixIcon: Obx(
-                                () => GestureDetector(
-                                  onTap: c.isGettingLocation.value
-                                      ? null
-                                      : c.getLocator,
-                                  child: c.isGettingLocation.value
-                                      ? const SizedBox(
-                                          width: 14,
-                                          height: 14,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Icon(Icons.my_location, size: 18),
-                                ),
-                              ),
-                              suffixIconConstraints: const BoxConstraints(
-                                minWidth: 18,
-                                minHeight: 18,
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                SizedBox(height: P.lineSpacing),
-                // CW Speed slider (only visible in CW mode, BT connected, hidden in contest mode)
-                Obx(() {
-                  final btController = Get.find<BluetoothController>();
-                  if (c.selectedMode.value != 'CW')
-                    return const SizedBox.shrink();
-                  if (!btController.isConnected.value)
-                    return const SizedBox.shrink();
-                  if (c.contestMode.value) return const SizedBox.shrink();
-                  // Clamp speed to valid range and update if out of bounds
-                  if (btController.cwSpeed.value < 16 ||
-                      btController.cwSpeed.value > 36) {
-                    btController.cwSpeed.value = btController.cwSpeed.value
-                        .clamp(16, 36);
-                  }
-                  return Container(
-                    height: 24,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    color: AppColors.surfaceLight,
-                    child: Row(
-                      children: [
-                        Obx(
-                          () => Text(
-                            '${btController.cwSpeed.value}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Obx(
-                            () => SliderTheme(
-                              data: SliderTheme.of(Get.context!).copyWith(
-                                trackHeight: 4,
-                                thumbShape: const RoundSliderThumbShape(
-                                  enabledThumbRadius: 10,
-                                ),
-                                overlayShape: const RoundSliderOverlayShape(
-                                  overlayRadius: 12,
-                                ),
-                              ),
-                              child: Slider(
-                                value: btController.cwSpeed.value.toDouble(),
-                                min: 16,
-                                max: 36,
-                                divisions: 20,
-                                onChanged: (value) {
-                                  btController.cwSpeed.value = value.round();
-                                  // Send speed to Arduino if connected
-                                  if (btController.isConnected.value) {
-                                    btController.sendSpeedChange();
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                SizedBox(height: P.lineSpacing),
-                // CW Checkbox row (only visible in CW mode, hidden in contest mode)
-                Obx(() {
-                  if (c.selectedMode.value != 'CW' || c.contestMode.value) {
-                    return const SizedBox.shrink();
-                  }
-                  final isDark = Get.find<ThemeController>().isDarkMode.value;
-                  return Column(
-                    children: [
-                      Container(
-                        padding: P.fieldBig,
-                        color: isDark ? Colors.black : AppColors.surfaceLight,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: CheckboxRow(
-                                checkboxes: [
-                                  LabeledCheckbox(
-                                    label: '0/t',
-                                    value: c.zeroIsT,
-                                  ),
-                                  LabeledCheckbox(
-                                    label: '9/n',
-                                    value: c.nineIsN,
-                                  ),
-                                  LabeledCheckbox(label: 'K', value: c.sendK),
-                                  LabeledCheckbox(label: 'BK', value: c.sendBK),
-                                ],
-                              ),
-                            ),
-                            SizedBox(
-                              width: 46,
-                              height: 28,
-                              child: TextFormField(
-                                controller: c.cwPreController,
-                                textCapitalization:
-                                    TextCapitalization.characters,
-                                style: const TextStyle(fontSize: 11),
-                                decoration: const InputDecoration(
-                                  labelText: 'pre',
-                                  labelStyle: TextStyle(fontSize: 9),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 4,
-                                  ),
-                                  border: OutlineInputBorder(),
-                                ),
-                                onChanged: (v) => c.saveCwPre(v.toUpperCase()),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            SizedBox(
-                              width: 46,
-                              height: 28,
-                              child: TextFormField(
-                                controller: c.cwPostController,
-                                textCapitalization:
-                                    TextCapitalization.characters,
-                                style: const TextStyle(fontSize: 11),
-                                decoration: const InputDecoration(
-                                  labelText: 'post',
-                                  labelStyle: TextStyle(fontSize: 9),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 4,
-                                  ),
-                                  border: OutlineInputBorder(),
-                                ),
-                                onChanged: (v) => c.saveCwPost(v.toUpperCase()),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: P.lineSpacing),
-                    ],
-                  );
-                }),
-                // Row 1: Icon, Callsign, RST IN, RST OUT
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // QRZ Icon - opens qrz.com when callsign is valid
-                    ValueListenableBuilder<TextEditingValue>(
-                      valueListenable: c.callsignController,
-                      builder: (context, value, child) {
-                        // Callsign regex: at least one letter, one digit, and one letter
-                        final callsignRegex = RegExp(
-                          r'^[A-Z0-9]{1,3}[0-9][A-Z0-9]*[A-Z]$',
-                          caseSensitive: false,
-                        );
-                        final isValidCallsign = callsignRegex.hasMatch(
-                          value.text.trim(),
-                        );
-                        return Padding(
-                          padding: P.icon,
-                          child: GestureDetector(
-                            onTap: isValidCallsign
-                                ? () async {
-                                    final call = value.text
-                                        .trim()
-                                        .toUpperCase();
-                                    final url = Uri(
-                                      scheme: 'https',
-                                      host: 'www.qrz.com',
-                                      path: '/db/$call',
-                                    );
-                                    try {
-                                      await launchUrl(
-                                        url,
-                                        mode: LaunchMode
-                                            .externalApplication,
-                                      );
-                                    } catch (e) {
-                                      debugPrint(e.toString());
-                                    }
-                                  }
-                                : null,
+                          GestureDetector(
+                            onTap: () => _showInfoLineSettings(context),
                             child: Icon(
-                              Icons.emoji_people,
-                              size: 28,
-                              color: isValidCallsign
-                                  ? Colors.blueAccent
-                                  : Colors.grey.shade400,
+                              Icons.settings,
+                              size: 18,
+                              color: textColor.withOpacity(0.6),
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                    // Callsign
-                    Expanded(
-                      flex: 6,
-                      child: Padding(
-                        padding: P.fieldTight,
-                        child: Obx(
-                          () => TextFormField(
-                            controller: c.callsignController,
-                            focusNode: c.callsignFocus,
-                            textCapitalization: TextCapitalization.characters,
-                            readOnly: c.useCustomKeyboard.value,
-                            showCursor: true,
-                            onTap: () =>
-                                c.setActiveTextField(c.callsignController),
-                            decoration: c.workedBefore.value
-                                ? InputStyles.fieldFilled('Callsign').copyWith(
-                                    filled: true,
-                                    fillColor: Colors.red,
-                                  )
-                                : InputStyles.fieldFilled('Callsign').copyWith(
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                  ),
-                            style: c.workedBefore.value
-                                ? FormStyles.callsign(
-                                    width,
-                                  ).copyWith(color: Colors.white)
-                                : FormStyles.callsign(
-                                    width,
-                                  ).copyWith(color: Colors.black),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Required';
-                              }
-                              return null;
-                            },
-                            onChanged: c.onCallsignChanged,
-                            onFieldSubmitted: (_) => c.submitQso(),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // RST IN
-                    Expanded(
-                      flex: 2,
-                      child: Padding(
-                        padding: P.fieldTight,
-                        child: Obx(
-                          () => TextFormField(
-                            controller: c.rstInController,
-                            focusNode: c.rstInFocus,
-                            keyboardType: TextInputType.number,
-                            readOnly: c.useCustomKeyboard.value,
-                            showCursor: true,
-                            decoration: InputStyles.fieldTight('IN'),
-                            style: FormStyles.rstIn(width),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            onTap: () {
-                              c.setActiveTextField(c.rstInController);
-                              _selectRstText(c, c.rstInController);
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                    // RST OUT
-                    Expanded(
-                      flex: 2,
-                      child: Padding(
-                        padding: P.fieldTight,
-                        child: Obx(
-                          () => TextFormField(
-                            controller: c.rstOutController,
-                            focusNode: c.rstOutFocus,
-                            keyboardType: TextInputType.number,
-                            readOnly: c.useCustomKeyboard.value,
-                            showCursor: true,
-                            decoration: InputStyles.fieldTight('OUT'),
-                            style: FormStyles.rstOut(width),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            onTap: () {
-                              c.setActiveTextField(c.rstOutController);
-                              _selectRstText(c, c.rstOutController);
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: P.lineSpacing),
-                // Row 2: Received Info, Xtra1, SPC, 2nd
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 5,
-                      child: Padding(
-                        padding: P.fieldTight,
-                        child: Obx(
-                          () => TextFormField(
-                            controller: c.receivedInfoController,
-                            focusNode: c.infoFocus,
-                            readOnly: c.useCustomKeyboard.value,
-                            showCursor: true,
-                            decoration: InputStyles.field('NR / INFO'),
-                            onTap: () =>
-                                c.setActiveTextField(c.receivedInfoController),
-                            onChanged: c.onInfoChanged,
-                            onFieldSubmitted: (_) => c.submitQso(),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      flex: 5,
-                      child: Padding(
-                        padding: P.fieldTight,
-                        child: Obx(
-                          () => TextFormField(
-                            controller: c.xtra1Controller,
-                            focusNode: c.xtra1Focus,
-                            readOnly: c.useCustomKeyboard.value,
-                            showCursor: true,
-                            decoration: InputStyles.field('Xtra 1'),
-                            onTap: () =>
-                                c.setActiveTextField(c.xtra1Controller),
-                            onChanged: c.onXtra1Changed,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // SPC toggle button
-                    Obx(() {
-                      // Access callsignList to rebuild when settings change
-                      Get.find<DatabaseController>().callsignList.length;
-                      return GestureDetector(
-                        onTap: () => c.toggleSpacebarSetting(),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                          margin: const EdgeInsets.only(left: 2),
-                          decoration: BoxDecoration(
-                            color: c.useSpacebarToggle ? Colors.green : Colors.grey.shade400,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'SPC',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                    // 2nd toggle button
-                    Obx(() {
-                      // Access callsignList to rebuild when settings change
-                      Get.find<DatabaseController>().callsignList.length;
-                      return GestureDetector(
-                        onTap: () => c.toggleSecondFieldSetting(),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                          margin: const EdgeInsets.only(left: 2),
-                          decoration: BoxDecoration(
-                            color: c.toggleSecondField ? Colors.green : Colors.grey.shade400,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            '2nd',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-                // Row 3: Date, Time (hidden when hideDateTime is true)
-                Obx(
-                  () => c.hideDateTime.value
-                      ? const SizedBox.shrink()
-                      : Column(
-                          children: [
-                            SizedBox(height: P.lineSpacing),
-                            Row(
-                              children: [
-                                Expanded(
-                                  flex: 5,
-                                  child: Padding(
-                                    padding: P.field,
-                                    child: TextFormField(
-                                      controller: c.dateController,
-                                      decoration: InputStyles.field('YYYYMMDD')
-                                          .copyWith(
-                                            suffixIcon: GestureDetector(
-                                              onTap: () =>
-                                                  _showDatePicker(context, c),
-                                              child: const Icon(
-                                                Icons.calendar_today,
-                                                size: 16,
-                                              ),
-                                            ),
-                                            suffixIconConstraints:
-                                                const BoxConstraints(
-                                                  minWidth: 24,
-                                                  minHeight: 24,
-                                                ),
-                                          ),
-                                      onTap: () => _showDatePicker(context, c),
-                                      readOnly: true,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 4,
-                                  child: Padding(
-                                    padding: P.field,
-                                    child: TextFormField(
-                                      controller: c.timeController,
-                                      decoration: InputStyles.field('HHMM')
-                                          .copyWith(
-                                            suffixIcon: GestureDetector(
-                                              onTap: () =>
-                                                  _showTimePicker(context, c),
-                                              child: const Icon(
-                                                Icons.access_time,
-                                                size: 16,
-                                              ),
-                                            ),
-                                            suffixIconConstraints:
-                                                const BoxConstraints(
-                                                  minWidth: 24,
-                                                  minHeight: 24,
-                                                ),
-                                          ),
-                                      onTap: () => _showTimePicker(context, c),
-                                      readOnly: true,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                ),
-                SizedBox(height: P.lineSpacing),
-                // Row 4: Band, Mode dropdowns (hidden in simulation mode)
-                Obx(() {
-                  if (simulationActive.value && simulationPaused.value) {
-                    return const SizedBox.shrink();
-                  }
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: Padding(
-                          padding: P.field,
-                          child: Obx(() {
-                            // Access selectedMyCallsign to rebuild when it changes
-                            c.selectedMyCallsign.value;
-                            final currentBands = c.bands;
-                            final currentBand =
-                                currentBands.contains(c.selectedBand.value)
-                                ? c.selectedBand.value
-                                : currentBands.first;
-                            return DropdownButtonFormField<String>(
-                              value: currentBand,
-                              decoration: InputStyles.dropdown('Band'),
-                              items: currentBands.map((band) {
-                                return DropdownMenuItem(
-                                  value: band,
-                                  child: Text(band),
-                                );
-                              }).toList(),
-                              onChanged: c.onBandChanged,
-                            );
-                          }),
-                        ),
-                      ),
-                      Expanded(
-                        child: Padding(
-                          padding: P.field,
-                          child: Obx(() {
-                            // Access selectedMyCallsign to rebuild when it changes
-                            c.selectedMyCallsign.value;
-                            final currentModes = c.modes;
-                            final currentMode =
-                                currentModes.contains(c.selectedMode.value)
-                                ? c.selectedMode.value
-                                : currentModes.first;
-                            return DropdownButtonFormField<String>(
-                              value: currentMode,
-                              decoration: InputStyles.dropdown('Mode'),
-                              items: currentModes.map((mode) {
-                                return DropdownMenuItem(
-                                  value: mode,
-                                  child: Text(mode),
-                                );
-                              }).toList(),
-                              onChanged: c.onModeChanged,
-                            );
-                          }),
-                        ),
-                      ),
-                      // Sat dropdown (only visible when showSatellite is enabled)
-                      Obx(
-                        () => c.showSatellite.value
-                            ? Expanded(
-                                child: Padding(
-                                  padding: P.field,
-                                  child: DropdownButtonFormField<String>(
-                                    value: c.selectedSatellite.value,
-                                    decoration: InputStyles.dropdown('Sat'),
-                                    isExpanded: true,
-                                    items: c.satellites.map((sat) {
-                                      return DropdownMenuItem(
-                                        value: sat,
-                                        child: Text(
-                                          sat,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      );
-                                    }).toList(),
-                                    onChanged: c.onSatelliteChanged,
-                                  ),
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                      // Count textbox (only visible when useCounter is enabled)
-                      Obx(
-                        () => c.useCounter.value
-                            ? Padding(
-                                padding: P.fieldTight,
-                                child: SizedBox(
-                                  width: 60,
-                                  child: TextFormField(
-                                    controller: c.xtra2Controller,
-                                    decoration: InputStyles.dropdown('count'),
-                                  ),
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                    ],
-                  );
-                }),
-                SizedBox(height: P.lineSpacing),
-                // Dynamic button rows based on saved layout
-                Obx(() {
-                  // If simulation is active and playing, show simulation buttons
-                  if (simulationActive.value && simulationPaused.value) {
-                    return Column(
-                      children: [
-                        _buildSimulationButtons(c),
-                        _buildSimulationResults(),
-                      ],
-                    );
-                  }
-
-                  final btController = Get.find<BluetoothController>();
-                  final isCwMode = c.selectedMode.value == 'CW';
-                  final isConnected = btController.isConnected.value;
-                  final rows = c.buttonLayoutRows.value;
-
-                  // Check if button should be visible
-                  bool isButtonVisible(String buttonId) {
-                    if (buttonId == 'CUSTOM' && c.cwCustomText.value.isEmpty) {
-                      return false;
-                    }
-                    if ([
-                      'CQ',
-                      'MY',
-                      'CALL',
-                      'RPT',
-                      'CUSTOM',
-                      'SEND',
-                    ].contains(buttonId)) {
-                      if (!isCwMode || !isConnected) return false;
-                    }
-                    return true;
-                  }
-
-                  return Column(
-                    children: rows.asMap().entries.map((entry) {
-                      final rowIndex = entry.key;
-                      final row = entry.value;
-                      if (row.isEmpty) return const SizedBox.shrink();
-
-                      // Check if any button in this row is visible
-                      final hasVisibleButton = row.any(
-                        (buttonId) => isButtonVisible(buttonId),
-                      );
-                      if (!hasVisibleButton) return const SizedBox.shrink();
-
-                      // Filter to only visible buttons in this row
-                      final visibleButtons = row
-                          .where((b) => isButtonVisible(b))
-                          .toList();
-
-                      return Column(
-                        children: [
-                          if (rowIndex > 0 &&
-                              rows
-                                  .sublist(0, rowIndex)
-                                  .any((r) => r.any((b) => isButtonVisible(b))))
-                            const SizedBox(height: 2),
-                          Row(
-                            children: visibleButtons
-                                .map(
-                                  (buttonId) => Expanded(
-                                    child: _buildButton(buttonId, c),
-                                  ),
-                                )
-                                .toList(),
                           ),
                         ],
-                      );
-                    }).toList(),
-                  );
-                }),
-                // Matching QSOs list - takes remaining space
-                Expanded(
-                  child: Obx(() {
-                    if (c.matchingQsos.isEmpty) return const SizedBox.shrink();
-                    final currentCall = c.callsignController.text
-                        .trim()
-                        .toUpperCase();
-                    final currentBand = c.selectedBand.value;
-                    final currentMode = c.selectedMode.value;
-
-                    // Sort: exact matches first
-                    final sortedQsos = c.matchingQsos.toList()
-                      ..sort((a, b) {
-                        final aExact =
-                            a.callsign.trim().toUpperCase() == currentCall &&
-                            a.band == currentBand &&
-                            a.mymode == currentMode;
-                        final bExact =
-                            b.callsign.trim().toUpperCase() == currentCall &&
-                            b.band == currentBand &&
-                            b.mymode == currentMode;
-                        if (aExact && !bExact) return -1;
-                        if (!aExact && bExact) return 1;
-                        return 0;
-                      });
-
-                    final itemCount = sortedQsos.length;
-                    final rowCount = (itemCount / 2).ceil();
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: ListView.builder(
-                        itemCount: rowCount,
-                        padding: EdgeInsets.zero,
-                        itemBuilder: (context, rowIndex) {
-                          return Row(
-                            children: List.generate(2, (colIndex) {
-                              final index = rowIndex * 2 + colIndex;
-                              if (index >= itemCount)
-                                return const Expanded(child: SizedBox());
-                              final qso = sortedQsos[index];
-                              final isExactMatch =
-                                  currentCall.isNotEmpty &&
-                                  qso.callsign.trim().toUpperCase() ==
-                                      currentCall &&
-                                  qso.band == currentBand &&
-                                  qso.mymode == currentMode;
-                              return Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 1,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isExactMatch ? Colors.red : null,
-                                    border: Border(
-                                      top: rowIndex == 0
-                                          ? BorderSide(
-                                              color: Colors.grey.shade400,
-                                              width: 0.5,
-                                            )
-                                          : BorderSide.none,
-                                      bottom: BorderSide(
-                                        color: Colors.grey.shade400,
-                                        width: 0.5,
-                                      ),
-                                      left: colIndex == 0
-                                          ? BorderSide(
-                                              color: Colors.grey.shade400,
-                                              width: 0.5,
-                                            )
-                                          : BorderSide.none,
-                                      right: BorderSide(
-                                        color: Colors.grey.shade400,
-                                        width: 0.5,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    '${qso.callsign} ${qso.qsodate} ${qso.band} ${qso.mymode}',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: isExactMatch ? Colors.white : null,
-                                      fontFamily: 'monospace',
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              );
-                            }),
-                          );
-                        },
                       ),
                     );
                   }),
-                ),
-              ],
+                  SizedBox(height: P.lineSpacing),
+
+                  // Service indicators row (hidden in contest mode and simulation mode)
+                  Obx(() {
+                    // Trigger rebuild when callsign changes
+                    c.selectedMyCallsign.value;
+                    if (c.contestMode.value) return const SizedBox.shrink();
+                    if (simulationActive.value && simulationPaused.value)
+                      return const SizedBox.shrink();
+                    final isDark = Get.find<ThemeController>().isDarkMode.value;
+                    return Container(
+                      color: isDark ? Colors.black : AppColors.surfaceLight,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          _buildServiceToggle(
+                            'Clublog',
+                            c.useClublog,
+                            c.clublogFlash,
+                            c.toggleClublog,
+                          ),
+                          const SizedBox(width: 4),
+                          _buildServiceToggle(
+                            'eQSL',
+                            c.useEqsl,
+                            c.eqslFlash,
+                            c.toggleEqsl,
+                          ),
+                          const SizedBox(width: 4),
+                          _buildServiceToggle(
+                            'LoTW',
+                            c.useLotw,
+                            c.lotwFlash,
+                            c.toggleLotw,
+                          ),
+                          const Spacer(),
+                          Container(
+                            width: 100,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(
+                                color: Colors.grey.shade400,
+                                width: 1,
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: TextFormField(
+                              controller: c.locatorController,
+                              textCapitalization: TextCapitalization.characters,
+                              style: const TextStyle(fontSize: 12),
+                              decoration: InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 0,
+                                ),
+                                isDense: true,
+                                suffixIcon: Obx(
+                                  () => GestureDetector(
+                                    onTap: c.isGettingLocation.value
+                                        ? null
+                                        : c.getLocator,
+                                    child: c.isGettingLocation.value
+                                        ? const SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.my_location,
+                                            size: 24,
+                                          ),
+                                  ),
+                                ),
+                                suffixIconConstraints: const BoxConstraints(
+                                  minWidth: 18,
+                                  minHeight: 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Send locator toggle
+                          Obx(
+                            () => GestureDetector(
+                              onTap: () {
+                                _sendLocator.value = !_sendLocator.value;
+                                _storage.write(
+                                  'send_locator',
+                                  _sendLocator.value,
+                                );
+                              },
+                              child: Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _sendLocator.value
+                                      ? Colors.green
+                                      : Colors.grey.shade400,
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    'LOC',
+                                    style: TextStyle(
+                                      fontSize: 7,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  SizedBox(height: P.lineSpacing),
+                  // CW Speed slider (only visible in CW mode, BT connected, hidden in contest mode)
+                  Obx(() {
+                    final btController = Get.find<BluetoothController>();
+                    if (c.selectedMode.value != 'CW')
+                      return const SizedBox.shrink();
+                    if (!btController.isConnected.value)
+                      return const SizedBox.shrink();
+                    if (c.contestMode.value) return const SizedBox.shrink();
+                    // Clamp speed to valid range and update if out of bounds
+                    if (btController.cwSpeed.value < 16 ||
+                        btController.cwSpeed.value > 36) {
+                      btController.cwSpeed.value = btController.cwSpeed.value
+                          .clamp(16, 36);
+                    }
+                    final isDark = Get.find<ThemeController>().isDarkMode.value;
+                    return Container(
+                      height: 24,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      color: isDark ? Colors.black : AppColors.surfaceLight,
+                      child: Row(
+                        children: [
+                          Obx(
+                            () => Text(
+                              '${btController.cwSpeed.value}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : null,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Obx(
+                              () => SliderTheme(
+                                data: SliderTheme.of(Get.context!).copyWith(
+                                  trackHeight: 4,
+                                  thumbShape: const RoundSliderThumbShape(
+                                    enabledThumbRadius: 10,
+                                  ),
+                                  overlayShape: const RoundSliderOverlayShape(
+                                    overlayRadius: 12,
+                                  ),
+                                ),
+                                child: Slider(
+                                  value: btController.cwSpeed.value.toDouble(),
+                                  min: 16,
+                                  max: 36,
+                                  divisions: 20,
+                                  onChanged: (value) {
+                                    btController.cwSpeed.value = value.round();
+                                    // Send speed to Arduino if connected
+                                    if (btController.isConnected.value) {
+                                      btController.sendSpeedChange();
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  SizedBox(height: P.lineSpacing),
+                  // CW Checkbox row (only visible in CW mode, hidden in contest mode)
+                  Obx(() {
+                    if (c.selectedMode.value != 'CW' || c.contestMode.value) {
+                      return const SizedBox.shrink();
+                    }
+                    final isDark = Get.find<ThemeController>().isDarkMode.value;
+                    return Column(
+                      children: [
+                        Container(
+                          padding: P.fieldBig,
+                          color: isDark ? Colors.black : AppColors.surfaceLight,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: RoundToggleRow(
+                                  toggles: [
+                                    RoundToggle(label: '0/T', value: c.zeroIsT),
+                                    RoundToggle(label: '9/N', value: c.nineIsN),
+                                    RoundToggle(label: 'BK', value: c.sendBK),
+                                    RoundToggle(label: 'K', value: c.sendK),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(
+                                width: 56,
+                                height: 28,
+                                child: TextFormField(
+                                  controller: c.cwPreController,
+                                  textCapitalization:
+                                      TextCapitalization.characters,
+                                  style: const TextStyle(fontSize: 11),
+                                  decoration: const InputDecoration(
+                                    labelText: 'pre',
+                                    labelStyle: TextStyle(fontSize: 9),
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 4,
+                                    ),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  onChanged: (v) =>
+                                      c.saveCwPre(v.toUpperCase()),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              SizedBox(
+                                width: 56,
+                                height: 28,
+                                child: TextFormField(
+                                  controller: c.cwPostController,
+                                  textCapitalization:
+                                      TextCapitalization.characters,
+                                  style: const TextStyle(fontSize: 11),
+                                  decoration: const InputDecoration(
+                                    labelText: 'post',
+                                    labelStyle: TextStyle(fontSize: 9),
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 4,
+                                    ),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  onChanged: (v) =>
+                                      c.saveCwPost(v.toUpperCase()),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: P.lineSpacing),
+                      ],
+                    );
+                  }),
+                  // Row 1: Icon, Callsign, RST IN, RST OUT
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // QRZ Icon - opens qrz.com when callsign is valid
+                      ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: c.callsignController,
+                        builder: (context, value, child) {
+                          // Callsign regex: at least one letter, one digit, and one letter
+                          final callsignRegex = RegExp(
+                            r'^[A-Z0-9]{1,3}[0-9][A-Z0-9]*[A-Z]$',
+                            caseSensitive: false,
+                          );
+                          final isValidCallsign = callsignRegex.hasMatch(
+                            value.text.trim(),
+                          );
+                          return Padding(
+                            padding: P.icon,
+                            child: GestureDetector(
+                              onTap: isValidCallsign
+                                  ? () async {
+                                      final call = value.text
+                                          .trim()
+                                          .toUpperCase();
+                                      final url = Uri(
+                                        scheme: 'https',
+                                        host: 'www.qrz.com',
+                                        path: '/db/$call',
+                                      );
+                                      try {
+                                        await launchUrl(
+                                          url,
+                                          mode: LaunchMode.externalApplication,
+                                        );
+                                      } catch (e) {
+                                        debugPrint(e.toString());
+                                      }
+                                    }
+                                  : null,
+                              child: Icon(
+                                Icons.emoji_people,
+                                size: 28,
+                                color: isValidCallsign
+                                    ? Colors.blueAccent
+                                    : Colors.grey.shade400,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      // Callsign
+                      Expanded(
+                        flex: 6,
+                        child: Padding(
+                          padding: P.fieldTight,
+                          child: Obx(
+                            () => TextFormField(
+                              controller: c.callsignController,
+                              focusNode: c.callsignFocus,
+                              textCapitalization: TextCapitalization.characters,
+                              readOnly: c.useCustomKeyboard.value,
+                              showCursor: true,
+                              onTap: () =>
+                                  c.setActiveTextField(c.callsignController),
+                              decoration: c.workedBefore.value
+                                  ? InputStyles.fieldFilled(
+                                      'Callsign',
+                                    ).copyWith(
+                                      filled: true,
+                                      fillColor: Colors.red,
+                                    )
+                                  : InputStyles.fieldFilled(
+                                      'Callsign',
+                                    ).copyWith(
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                    ),
+                              style: c.workedBefore.value
+                                  ? FormStyles.callsign(
+                                      width,
+                                    ).copyWith(color: Colors.white)
+                                  : FormStyles.callsign(
+                                      width,
+                                    ).copyWith(color: Colors.black),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Required';
+                                }
+                                return null;
+                              },
+                              onChanged: c.onCallsignChanged,
+                              onFieldSubmitted: (_) => c.submitQso(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // RST IN
+                      Expanded(
+                        flex: 2,
+                        child: Padding(
+                          padding: P.fieldTight,
+                          child: Obx(
+                            () => TextFormField(
+                              controller: c.rstInController,
+                              focusNode: c.rstInFocus,
+                              keyboardType: TextInputType.number,
+                              readOnly: c.useCustomKeyboard.value,
+                              showCursor: true,
+                              decoration: InputStyles.fieldTight('IN'),
+                              style: FormStyles.rstIn(width),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              onTap: () {
+                                c.setActiveTextField(c.rstInController);
+                                _selectRstText(c, c.rstInController);
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      // RST OUT
+                      Expanded(
+                        flex: 2,
+                        child: Padding(
+                          padding: P.fieldTight,
+                          child: Obx(
+                            () => TextFormField(
+                              controller: c.rstOutController,
+                              focusNode: c.rstOutFocus,
+                              keyboardType: TextInputType.number,
+                              readOnly: c.useCustomKeyboard.value,
+                              showCursor: true,
+                              decoration: InputStyles.fieldTight('OUT'),
+                              style: FormStyles.rstOut(width),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              onTap: () {
+                                c.setActiveTextField(c.rstOutController);
+                                _selectRstText(c, c.rstOutController);
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: P.lineSpacing),
+                  // Row 2: Received Info, Xtra1, SPC, 2nd
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 5,
+                        child: Padding(
+                          padding: P.fieldTight,
+                          child: Obx(
+                            () => TextFormField(
+                              controller: c.receivedInfoController,
+                              focusNode: c.infoFocus,
+                              textCapitalization: TextCapitalization.characters,
+                              readOnly: c.useCustomKeyboard.value,
+                              showCursor: true,
+                              decoration: InputStyles.field('NR / INFO'),
+                              inputFormatters: [UpperCaseTextFormatter()],
+                              onTap: () => c.setActiveTextField(
+                                c.receivedInfoController,
+                              ),
+                              onChanged: c.onInfoChanged,
+                              onFieldSubmitted: (_) => c.submitQso(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 5,
+                        child: Padding(
+                          padding: P.fieldTight,
+                          child: Obx(
+                            () => TextFormField(
+                              controller: c.xtra1Controller,
+                              focusNode: c.xtra1Focus,
+                              textCapitalization: TextCapitalization.characters,
+                              readOnly: c.useCustomKeyboard.value,
+                              showCursor: true,
+                              decoration: InputStyles.field('Xtra 1'),
+                              inputFormatters: [UpperCaseTextFormatter()],
+                              onTap: () =>
+                                  c.setActiveTextField(c.xtra1Controller),
+                              onChanged: c.onXtra1Changed,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Jump mode dropdown
+                      Obx(() {
+                        // Access callsignList to rebuild when settings change
+                        Get.find<DatabaseController>().callsignList.length;
+                        return Container(
+                          height: 38,
+                          margin: const EdgeInsets.only(left: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(
+                            color: c.jumpMode == 'none'
+                                ? Colors.grey.shade400
+                                : Colors.green,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: DropdownButton<String>(
+                            value: c.jumpMode,
+                            underline: const SizedBox(),
+                            isDense: false,
+                            dropdownColor: Colors.grey.shade800,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            icon: const Icon(
+                              Icons.arrow_drop_down,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'none',
+                                child: Text('none'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'SPC',
+                                child: Text('SPC'),
+                              ),
+                              DropdownMenuItem(
+                                value: '2nd',
+                                child: Text('2nd'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'jump',
+                                child: Text('jump'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) c.setJumpMode(value);
+                            },
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                  // Row 3: Date, Time (hidden when hideDateTime is true)
+                  Obx(
+                    () => c.hideDateTime.value
+                        ? const SizedBox.shrink()
+                        : Column(
+                            children: [
+                              SizedBox(height: P.lineSpacing),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 5,
+                                    child: Padding(
+                                      padding: P.field,
+                                      child: TextFormField(
+                                        controller: c.dateController,
+                                        decoration:
+                                            InputStyles.field(
+                                              'YYYYMMDD',
+                                            ).copyWith(
+                                              suffixIcon: GestureDetector(
+                                                onTap: () =>
+                                                    _showDatePicker(context, c),
+                                                child: const Icon(
+                                                  Icons.calendar_today,
+                                                  size: 16,
+                                                ),
+                                              ),
+                                              suffixIconConstraints:
+                                                  const BoxConstraints(
+                                                    minWidth: 24,
+                                                    minHeight: 24,
+                                                  ),
+                                            ),
+                                        onTap: () =>
+                                            _showDatePicker(context, c),
+                                        readOnly: true,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 4,
+                                    child: Padding(
+                                      padding: P.field,
+                                      child: TextFormField(
+                                        controller: c.timeController,
+                                        decoration: InputStyles.field('HHMM')
+                                            .copyWith(
+                                              suffixIcon: GestureDetector(
+                                                onTap: () =>
+                                                    _showTimePicker(context, c),
+                                                child: const Icon(
+                                                  Icons.access_time,
+                                                  size: 16,
+                                                ),
+                                              ),
+                                              suffixIconConstraints:
+                                                  const BoxConstraints(
+                                                    minWidth: 24,
+                                                    minHeight: 24,
+                                                  ),
+                                            ),
+                                        onTap: () =>
+                                            _showTimePicker(context, c),
+                                        readOnly: true,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                  ),
+                  SizedBox(height: P.lineSpacing),
+                  // Row 4: Band, Mode dropdowns (hidden in simulation mode)
+                  Obx(() {
+                    if (simulationActive.value && simulationPaused.value) {
+                      return const SizedBox.shrink();
+                    }
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: P.field,
+                            child: Obx(() {
+                              // Access selectedMyCallsign to rebuild when it changes
+                              c.selectedMyCallsign.value;
+                              final currentBands = c.bands;
+                              final currentBand =
+                                  currentBands.contains(c.selectedBand.value)
+                                  ? c.selectedBand.value
+                                  : currentBands.first;
+                              return DropdownButtonFormField<String>(
+                                value: currentBand,
+                                decoration: InputStyles.dropdown('Band'),
+                                items: currentBands.map((band) {
+                                  return DropdownMenuItem(
+                                    value: band,
+                                    child: Text(band),
+                                  );
+                                }).toList(),
+                                onChanged: c.onBandChanged,
+                              );
+                            }),
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: P.field,
+                            child: Obx(() {
+                              // Access selectedMyCallsign to rebuild when it changes
+                              c.selectedMyCallsign.value;
+                              final currentModes = c.modes;
+                              final currentMode =
+                                  currentModes.contains(c.selectedMode.value)
+                                  ? c.selectedMode.value
+                                  : currentModes.first;
+                              return DropdownButtonFormField<String>(
+                                value: currentMode,
+                                decoration: InputStyles.dropdown('Mode'),
+                                items: currentModes.map((mode) {
+                                  return DropdownMenuItem(
+                                    value: mode,
+                                    child: Text(mode),
+                                  );
+                                }).toList(),
+                                onChanged: c.onModeChanged,
+                              );
+                            }),
+                          ),
+                        ),
+                        // Sat dropdown (only visible when showSatellite is enabled)
+                        Obx(
+                          () => c.showSatellite.value
+                              ? Expanded(
+                                  child: Padding(
+                                    padding: P.field,
+                                    child: DropdownButtonFormField<String>(
+                                      value: c.selectedSatellite.value,
+                                      decoration: InputStyles.dropdownFilled(
+                                        'Sat',
+                                        AppColors.dropdownSatellite,
+                                      ),
+                                      isExpanded: true,
+                                      dropdownColor:
+                                          AppColors.dropdownSatellite,
+                                      style: const TextStyle(
+                                        color: Colors.black87,
+                                      ),
+                                      items: c.satellites.map((sat) {
+                                        return DropdownMenuItem(
+                                          value: sat,
+                                          child: Text(
+                                            sat,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: c.onSatelliteChanged,
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                        // Count textbox (only visible when useCounter is enabled)
+                        Obx(
+                          () => c.useCounter.value
+                              ? Padding(
+                                  padding: P.fieldTight,
+                                  child: SizedBox(
+                                    width: 60,
+                                    child: TextFormField(
+                                      controller: c.xtra2Controller,
+                                      decoration: InputStyles.dropdown('count'),
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
+                    );
+                  }),
+                  SizedBox(height: P.lineSpacing),
+                  // Dynamic button rows based on saved layout
+                  Obx(() {
+                    // If simulation is active and playing, show simulation buttons
+                    if (simulationActive.value && simulationPaused.value) {
+                      return Column(
+                        children: [
+                          _buildSimulationButtons(c),
+                          _buildSimulationResults(),
+                        ],
+                      );
+                    }
+
+                    final btController = Get.find<BluetoothController>();
+                    final isCwMode = c.selectedMode.value == 'CW';
+                    final isConnected = btController.isConnected.value;
+                    final rows = c.buttonLayoutRows.value;
+
+                    // Check if button should be visible
+                    bool isButtonVisible(String buttonId) {
+                      if (buttonId == 'CUSTOM' &&
+                          c.cwCustomText.value.isEmpty) {
+                        return false;
+                      }
+                      if ([
+                        'CQ',
+                        'MY',
+                        'CALL',
+                        'RPT',
+                        'CUSTOM',
+                        'SEND',
+                      ].contains(buttonId)) {
+                        if (!isCwMode || !isConnected) return false;
+                      }
+                      return true;
+                    }
+
+                    return Column(
+                      children: rows.asMap().entries.map((entry) {
+                        final rowIndex = entry.key;
+                        final row = entry.value;
+                        if (row.isEmpty) return const SizedBox.shrink();
+
+                        // Check if any button in this row is visible
+                        final hasVisibleButton = row.any(
+                          (buttonId) => isButtonVisible(buttonId),
+                        );
+                        if (!hasVisibleButton) return const SizedBox.shrink();
+
+                        // Filter to only visible buttons in this row
+                        final visibleButtons = row
+                            .where((b) => isButtonVisible(b))
+                            .toList();
+
+                        return Row(
+                          children: visibleButtons
+                              .map(
+                                (buttonId) => Expanded(
+                                  child: _buildButton(buttonId, c),
+                                ),
+                              )
+                              .toList(),
+                        );
+                      }).toList(),
+                    );
+                  }),
+                  // Matching QSOs list - takes remaining space
+                  Expanded(
+                    child: Obx(() {
+                      if (c.matchingQsos.isEmpty)
+                        return const SizedBox.shrink();
+                      final currentCall = c.callsignController.text
+                          .trim()
+                          .toUpperCase();
+                      final currentBand = c.selectedBand.value;
+                      final currentMode = c.selectedMode.value;
+
+                      // Sort: exact matches first
+                      final sortedQsos = c.matchingQsos.toList()
+                        ..sort((a, b) {
+                          final aExact =
+                              a.callsign.trim().toUpperCase() == currentCall &&
+                              a.band == currentBand &&
+                              a.mymode == currentMode;
+                          final bExact =
+                              b.callsign.trim().toUpperCase() == currentCall &&
+                              b.band == currentBand &&
+                              b.mymode == currentMode;
+                          if (aExact && !bExact) return -1;
+                          if (!aExact && bExact) return 1;
+                          return 0;
+                        });
+
+                      final itemCount = sortedQsos.length;
+                      final rowCount = (itemCount / 2).ceil();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: ListView.builder(
+                          itemCount: rowCount,
+                          padding: EdgeInsets.zero,
+                          itemBuilder: (context, rowIndex) {
+                            return Row(
+                              children: List.generate(2, (colIndex) {
+                                final index = rowIndex * 2 + colIndex;
+                                if (index >= itemCount)
+                                  return const Expanded(child: SizedBox());
+                                final qso = sortedQsos[index];
+                                final isExactMatch =
+                                    currentCall.isNotEmpty &&
+                                    qso.callsign.trim().toUpperCase() ==
+                                        currentCall &&
+                                    qso.band == currentBand &&
+                                    qso.mymode == currentMode;
+                                return Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 1,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isExactMatch ? Colors.red : null,
+                                      border: Border(
+                                        top: rowIndex == 0
+                                            ? BorderSide(
+                                                color: Colors.grey.shade400,
+                                                width: 0.5,
+                                              )
+                                            : BorderSide.none,
+                                        bottom: BorderSide(
+                                          color: Colors.grey.shade400,
+                                          width: 0.5,
+                                        ),
+                                        left: colIndex == 0
+                                            ? BorderSide(
+                                                color: Colors.grey.shade400,
+                                                width: 0.5,
+                                              )
+                                            : BorderSide.none,
+                                        right: BorderSide(
+                                          color: Colors.grey.shade400,
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '${qso.callsign} ${qso.qsodate} ${qso.band} ${qso.mymode}',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: isExactMatch
+                                            ? Colors.white
+                                            : null,
+                                        fontFamily: 'monospace',
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                );
+                              }),
+                            );
+                          },
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        // Custom keyboard at bottom
-        Obx(
-          () => c.useCustomKeyboard.value
-              ? const CustomKeyboard()
-              : const SizedBox.shrink(),
-        ),
-      ],
+          // Custom keyboard at bottom
+          Obx(
+            () => c.useCustomKeyboard.value
+                ? const CustomKeyboard()
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
     );
   }
 }

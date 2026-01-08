@@ -103,14 +103,61 @@ class _ExportSettingTile extends StatelessWidget {
       },
       child: ListTile(
         leading: Icon(
-          setting.format == 'adif' ? Icons.description : Icons.table_chart,
-          color: setting.format == 'adif' ? Colors.blue : Colors.orange,
+          setting.format == 'adif'
+              ? Icons.description
+              : setting.format == 'edi'
+                  ? Icons.radio
+                  : Icons.table_chart,
+          color: setting.format == 'adif'
+              ? Colors.blue
+              : setting.format == 'edi'
+                  ? Colors.green
+                  : Colors.orange,
         ),
         title: Text(setting.name),
         subtitle: Text(
           '${setting.format.toUpperCase()} • $fieldCount fields • ${setting.dateFormat}',
         ),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit, size: 20),
+              onPressed: () => Get.to(() => ExportSettingEditScreen(setting: setting)),
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Export Setting'),
+                    content: Text('Delete "${setting.name}"?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true && setting.id != null) {
+                  dbController.deleteExportSetting(setting.id!);
+                }
+              },
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            ),
+          ],
+        ),
         onTap: () => Get.to(() => ExportSettingEditScreen(setting: setting)),
       ),
     );

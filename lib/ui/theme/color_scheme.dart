@@ -26,6 +26,11 @@ class AppColors {
 
   // AppBar colors
   static const appBarTitle = Color(0xFF5F501E);
+
+  // Dropdown background colors (editable here)
+  static const dropdownCallsign = Color(0xFFE3F1A4); // Light Blue
+  static const dropdownActivation = Color(0xFFEFC279); // Light Orange
+  static const dropdownSatellite = Color(0xFFB8F8F6); // Light Green
 }
 
 ColorScheme buildLightScheme() {

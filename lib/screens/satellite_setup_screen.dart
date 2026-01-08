@@ -18,12 +18,17 @@ class SatelliteSetupScreen extends StatelessWidget {
   void _showSatelliteDialog({SatelliteModel? satellite}) {
     final dbController = Get.find<DatabaseController>();
     final nameController = TextEditingController(text: satellite?.name ?? '');
-    final descController = TextEditingController(text: satellite?.description ?? '');
+    final descController = TextEditingController(
+      text: satellite?.description ?? '',
+    );
     final isEditing = satellite != null;
 
     Get.dialog(
       AlertDialog(
-        title: Text(isEditing ? 'Edit Satellite' : 'Add Satellite', style: const TextStyle(fontSize: 16)),
+        title: Text(
+          isEditing ? 'Edit Satellite' : 'Add Satellite',
+          style: const TextStyle(fontSize: 16),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -48,29 +53,33 @@ class SatelliteSetupScreen extends StatelessWidget {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               final name = nameController.text.trim();
               if (name.isEmpty) {
-                Get.snackbar('Error', 'Name is required',
-                    snackPosition: SnackPosition.BOTTOM);
+                Get.snackbar(
+                  'Error',
+                  'Name is required',
+                  snackPosition: SnackPosition.BOTTOM,
+                );
                 return;
               }
 
               if (isEditing) {
-                dbController.updateSatellite(satellite.copyWith(
-                  name: name,
-                  description: descController.text.trim(),
-                ));
+                dbController.updateSatellite(
+                  satellite.copyWith(
+                    name: name,
+                    description: descController.text.trim(),
+                  ),
+                );
               } else {
-                dbController.addSatellite(SatelliteModel(
-                  name: name,
-                  description: descController.text.trim(),
-                ));
+                dbController.addSatellite(
+                  SatelliteModel(
+                    name: name,
+                    description: descController.text.trim(),
+                  ),
+                );
               }
               Get.back();
             },
@@ -89,10 +98,7 @@ class SatelliteSetupScreen extends StatelessWidget {
         title: const Text('Delete Satellite', style: TextStyle(fontSize: 16)),
         content: Text('Delete "${satellite.name}"?'),
         actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               dbController.deleteSatellite(satellite.id!);
@@ -111,16 +117,17 @@ class SatelliteSetupScreen extends StatelessWidget {
     final existingNames = dbController.satelliteList.map((s) => s.name).toSet();
     final maxSortOrder = dbController.satelliteList.isEmpty
         ? 0
-        : dbController.satelliteList.map((s) => s.sortOrder).reduce((a, b) => a > b ? a : b);
+        : dbController.satelliteList
+              .map((s) => s.sortOrder)
+              .reduce((a, b) => a > b ? a : b);
 
     int imported = 0;
     for (final name in satelliteList) {
       if (name == 'no sat') continue;
       if (existingNames.contains(name)) continue;
-      dbController.addSatellite(SatelliteModel(
-        name: name,
-        sortOrder: maxSortOrder + imported + 1,
-      ));
+      dbController.addSatellite(
+        SatelliteModel(name: name, sortOrder: maxSortOrder + imported + 1),
+      );
       imported++;
     }
 
@@ -155,11 +162,12 @@ class SatelliteSetupScreen extends StatelessWidget {
       // Unchecking: move to end of list
       final maxSortOrder = dbController.satelliteList.isEmpty
           ? 0
-          : dbController.satelliteList.map((s) => s.sortOrder).reduce((a, b) => a > b ? a : b);
-      await dbController.updateSatellite(satellite.copyWith(
-        isActive: false,
-        sortOrder: maxSortOrder + 1,
-      ));
+          : dbController.satelliteList
+                .map((s) => s.sortOrder)
+                .reduce((a, b) => a > b ? a : b);
+      await dbController.updateSatellite(
+        satellite.copyWith(isActive: false, sortOrder: maxSortOrder + 1),
+      );
     } else {
       // Checking: just toggle, keep position
       await dbController.updateSatellite(satellite.copyWith(isActive: true));
@@ -206,18 +214,28 @@ class SatelliteSetupScreen extends StatelessWidget {
                 child: ExpansionTile(
                   title: const Text('Help'),
                   leading: const Icon(Icons.help_outline),
-                  childrenPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  childrenPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   children: [
                     RichText(
                       text: TextSpan(
-                        style: TextStyle(fontSize: 13, color: Theme.of(context).textTheme.bodyMedium?.color),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
                         children: const [
                           TextSpan(
                             text: 'LoTW and Satellite Names\n\n',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
                           TextSpan(
-                            text: 'Logbook of The World (LoTW) is the ARRL\'s official QSO confirmation system.\n'
+                            text:
+                                'Logbook of The World (LoTW) is the ARRL\'s official QSO confirmation system.\n'
                                 'For satellite QSOs, LoTW requires:\n\n'
                                 '• PROP_MODE=SAT\n'
                                 '• SAT_NAME=<satellite name>\n\n'
@@ -226,10 +244,14 @@ class SatelliteSetupScreen extends StatelessWidget {
                           ),
                           TextSpan(
                             text: 'How to find the current satellite list\n\n',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
                           TextSpan(
-                            text: '1. Update TQSL to the latest version.\n'
+                            text:
+                                '1. Update TQSL to the latest version.\n'
                                 '2. Select "Create a new ADIF file" in TQSL.\n'
                                 '3. During the ADIF creation process, open the Satellite selection.\n'
                                 '4. The satellites shown there represent the currently accepted LoTW satellite names.\n\n'
@@ -247,7 +269,9 @@ class SatelliteSetupScreen extends StatelessWidget {
               SliverToBoxAdapter(
                 child: CheckboxListTile(
                   title: const Text('Show Satellite Dropdown'),
-                  subtitle: const Text('Display satellite selection in QSO form'),
+                  subtitle: const Text(
+                    'Display satellite selection in QSO form',
+                  ),
                   value: c.showSatellite.value,
                   onChanged: (_) => c.toggleShowSatellite(),
                 ),
@@ -261,7 +285,8 @@ class SatelliteSetupScreen extends StatelessWidget {
               else
                 SliverReorderableList(
                   itemCount: satellites.length,
-                  onReorder: (oldIndex, newIndex) => _onReorder(oldIndex, newIndex, satellites),
+                  onReorder: (oldIndex, newIndex) =>
+                      _onReorder(oldIndex, newIndex, satellites),
                   itemBuilder: (context, index) {
                     final sat = satellites[index];
                     return Material(
@@ -299,10 +324,15 @@ class SatelliteSetupScreen extends StatelessWidget {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.edit, size: 20),
-                              onPressed: () => _showSatelliteDialog(satellite: sat),
+                              onPressed: () =>
+                                  _showSatelliteDialog(satellite: sat),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.red,
+                                size: 20,
+                              ),
                               onPressed: () => _confirmDelete(sat),
                             ),
                           ],

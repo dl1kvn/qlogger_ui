@@ -5,12 +5,15 @@ import 'package:get_storage/get_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import '../controllers/qso_form_controller.dart';
 import 'online_logs_screen.dart';
 import 'my_callsigns_screen.dart';
 import 'activations_screen.dart';
 import 'help_screen.dart';
 import 'satellite_setup_screen.dart';
 import 'simulation_setup_screen.dart';
+import 'external_keyboard_screen.dart';
+import '../ui/theme/color_scheme.dart';
 
 class SetupScreen extends StatelessWidget {
   const SetupScreen({super.key});
@@ -145,18 +148,30 @@ class SetupScreen extends StatelessWidget {
               onPressed: () => Get.to(() => const MyCallsignsScreen()),
               icon: const Icon(Icons.person),
               label: const Text('My Callsigns'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.dropdownCallsign,
+                foregroundColor: Colors.black87,
+              ),
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: () => Get.to(() => const ActivationsScreen()),
               icon: const Icon(Icons.terrain),
               label: const Text('Activations'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.dropdownActivation,
+                foregroundColor: Colors.black87,
+              ),
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: () => Get.to(() => const SatelliteSetupScreen()),
               icon: const Icon(Icons.satellite_alt),
               label: const Text('Satellite Setup'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.dropdownSatellite,
+                foregroundColor: Colors.black87,
+              ),
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
@@ -164,6 +179,29 @@ class SetupScreen extends StatelessWidget {
               icon: const Icon(Icons.image),
               label: const Text('Start Screen'),
             ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: () => Get.to(() => const ExternalKeyboardScreen()),
+              icon: const Icon(Icons.keyboard_alt),
+              label: const Text('External Keyboard'),
+            ),
+            const SizedBox(height: 12),
+            // Prevent sleep toggle
+            Obx(() {
+              final c = Get.find<QsoFormController>();
+              return FilledButton.icon(
+                onPressed: c.toggleStayAwake,
+                icon: Icon(
+                  c.stayAwake.value ? Icons.visibility : Icons.visibility_off,
+                ),
+                label: Text(
+                  'Prevent Sleep ${c.stayAwake.value ? "ON" : "OFF"}',
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: c.stayAwake.value ? Colors.green : Colors.grey,
+                ),
+              );
+            }),
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: () => Get.to(() => const OnlineLogsScreen()),

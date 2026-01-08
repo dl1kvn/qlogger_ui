@@ -400,6 +400,12 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
                       isDense: true,
                     ),
                     isExpanded: true,
+                    selectedItemBuilder: (context) {
+                      return [
+                        const Text('No activation'),
+                        ...activations.map((a) => Text(a.reference, overflow: TextOverflow.ellipsis)),
+                      ];
+                    },
                     items: [
                       const DropdownMenuItem<int?>(
                         value: null,
@@ -911,6 +917,12 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
                             isDense: true,
                           ),
                           isExpanded: true,
+                          selectedItemBuilder: (context) {
+                            return [
+                              const Text('All'),
+                              ...activations.map((a) => Text(a.reference, overflow: TextOverflow.ellipsis)),
+                            ];
+                          },
                           items: [
                             const DropdownMenuItem<int?>(
                               value: null,
@@ -1582,6 +1594,12 @@ class _QsoListTile extends StatelessWidget {
                       isDense: true,
                     ),
                     isExpanded: true,
+                    selectedItemBuilder: (context) {
+                      return [
+                        const Text('No activation'),
+                        ...activations.map((a) => Text(a.reference, overflow: TextOverflow.ellipsis)),
+                      ];
+                    },
                     items: [
                       const DropdownMenuItem<int?>(
                         value: null,

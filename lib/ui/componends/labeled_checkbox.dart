@@ -56,3 +56,70 @@ class CheckboxRow extends StatelessWidget {
     );
   }
 }
+
+class RoundToggle extends StatelessWidget {
+  final String label;
+  final RxBool value;
+  final double size;
+
+  const RoundToggle({
+    super.key,
+    required this.label,
+    required this.value,
+    this.size = 28,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() => GestureDetector(
+      onTap: () => value.value = !value.value,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: value.value ? Colors.green : Colors.grey.shade400,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    ));
+  }
+}
+
+class RoundToggleRow extends StatelessWidget {
+  final List<RoundToggle> toggles;
+
+  const RoundToggleRow({
+    super.key,
+    required this.toggles,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: toggles
+          .map((t) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: t,
+              ))
+          .toList(),
+    );
+  }
+}

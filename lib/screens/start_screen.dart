@@ -100,9 +100,9 @@ class StartScreen extends StatelessWidget {
     final iconRow = PreferredSize(
       preferredSize: const Size.fromHeight(32),
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.only(bottom: 4, right: 8),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
             // Bluetooth status icon
             Obx(
@@ -132,28 +132,10 @@ class StartScreen extends StatelessWidget {
                 onTap: c.toggleUseCounter,
               ),
             ),
-            // Theme toggle icon
-            Obx(
-              () => _appBarIconButton(
-                icon: themeController.isDarkMode.value
-                    ? Icons.light_mode
-                    : Icons.dark_mode,
-                color: Colors.grey,
-                onTap: themeController.toggleTheme,
-              ),
-            ),
-            // Stay awake toggle icon
-            Obx(
-              () => _appBarIconButton(
-                icon: Icons.coffee,
-                color: c.stayAwake.value ? Colors.green : Colors.grey,
-                onTap: c.toggleStayAwake,
-              ),
-            ),
             // Simulation mode toggle
             Obx(
               () => _appBarIconButton(
-                icon: Icons.play_arrow,
+                icon: Icons.school,
                 color: simulationActive.value ? Colors.green : Colors.grey,
                 onTap: () {
                   if (simulationActive.value) {
@@ -183,7 +165,7 @@ class StartScreen extends StatelessWidget {
               const Spacer(),
               // Contest mode toggle icon
               _appBarIconButton(
-                icon: Icons.emoji_events,
+                icon: Icons.compress,
                 color: c.contestMode.value ? Colors.green : Colors.grey,
                 onTap: c.toggleContestMode,
               ),
@@ -193,6 +175,17 @@ class StartScreen extends StatelessWidget {
                 icon: Icons.keyboard,
                 color: c.useCustomKeyboard.value ? Colors.green : Colors.grey,
                 onTap: c.toggleCustomKeyboard,
+              ),
+              const SizedBox(width: 4),
+              // Theme toggle icon
+              Obx(
+                () => _appBarIconButton(
+                  icon: themeController.isDarkMode.value
+                      ? Icons.light_mode
+                      : Icons.dark_mode,
+                  color: Colors.grey,
+                  onTap: themeController.toggleTheme,
+                ),
               ),
               const SizedBox(width: 8),
               // UTC Time

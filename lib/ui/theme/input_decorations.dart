@@ -65,4 +65,15 @@ class InputStyles {
     border: const OutlineInputBorder(),
     contentPadding: dropdownPadding,
   );
+
+  static InputDecoration dropdownFilled(String label, Color fillColor) =>
+      InputDecoration(
+        labelText: label,
+        labelStyle: labelSmall,
+        isDense: true,
+        filled: true,
+        fillColor: fillColor,
+        border: const OutlineInputBorder(),
+        contentPadding: dropdownPadding,
+      );
 }
