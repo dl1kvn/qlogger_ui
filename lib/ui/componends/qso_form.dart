@@ -245,6 +245,7 @@ KeyEventResult _handleExternalKeyboard(KeyEvent event, QsoFormController c) {
     'rpt': c.sendRprtOnly,
     'call': c.sendHisCall,
     'send': c.sendCallPlusRprt,
+    'savetu': c.saveAndSendTu,
   };
 
   for (final entry in mappings.entries) {
@@ -352,6 +353,84 @@ class QsoForm extends StatelessWidget {
 
     final config = buttonConfig[buttonId];
     if (config == null) return const SizedBox.shrink();
+
+    // SAVE button split into SAVE + TU (always together)
+    if (buttonId == 'SAVE') {
+      return Obx(() {
+        final showTu = c.showCwButtons;
+        return ValueListenableBuilder<TextEditingValue>(
+          valueListenable: c.callsignController,
+          builder: (context, value, child) {
+            final isCallsignValid = c.isCallsignValid;
+            final saveColor = config['color'] as Color;
+            const tuColor = Colors.teal;
+            return Row(
+              children: [
+                // SAVE button
+                Expanded(
+                  flex: showTu ? 2 : 1,
+                  child: ElevatedButton(
+                    onPressed: isCallsignValid
+                        ? config['onPressed'] as VoidCallback
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: saveColor,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Color.lerp(
+                        saveColor,
+                        Colors.black,
+                        0.5,
+                      ),
+                      disabledForegroundColor: Colors.white54,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(0),
+                      ),
+                      elevation: 0,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      config['label'] as String,
+                      style: ButtonStyles.button,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                // TU button (only visible when CW mode + BT connected)
+                if (showTu)
+                  Expanded(
+                    flex: 1,
+                    child: ElevatedButton(
+                      onPressed: isCallsignValid ? c.saveAndSendTu : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: tuColor,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: Color.lerp(
+                          tuColor,
+                          Colors.black,
+                          0.5,
+                        ),
+                        disabledForegroundColor: Colors.white54,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(0),
+                        ),
+                        elevation: 0,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        'TU',
+                        style: ButtonStyles.button,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        );
+      });
+    }
 
     return ElevatedButton(
       onPressed: config['onPressed'] as VoidCallback,
@@ -1074,9 +1153,7 @@ class QsoForm extends StatelessWidget {
                                   ),
                                   isExpanded: true,
                                   dropdownColor: AppColors.dropdownActivation,
-                                  style: const TextStyle(
-                                    color: Colors.black87,
-                                  ),
+                                  style: const TextStyle(color: Colors.black87),
                                   itemHeight: 56,
                                   selectedItemBuilder: (context) {
                                     return [
@@ -1630,6 +1707,13 @@ class QsoForm extends StatelessWidget {
                               controller: c.callsignController,
                               focusNode: c.callsignFocus,
                               textCapitalization: TextCapitalization.characters,
+                              inputFormatters: [
+                                TextInputFormatter.withFunction(
+                                  (oldValue, newValue) => newValue.copyWith(
+                                    text: newValue.text.toUpperCase(),
+                                  ),
+                                ),
+                              ],
                               readOnly: c.useCustomKeyboard.value,
                               showCursor: true,
                               onTap: () =>
@@ -1800,7 +1884,7 @@ class QsoForm extends StatelessWidget {
                               ),
                               DropdownMenuItem(
                                 value: 'SPC',
-                                child: Text('SPC'),
+                                child: Text('1st'),
                               ),
                               DropdownMenuItem(
                                 value: '2nd',
@@ -2058,6 +2142,7 @@ class QsoForm extends StatelessWidget {
                           children: visibleButtons
                               .map(
                                 (buttonId) => Expanded(
+                                  flex: buttonId == 'CLR' ? 1 : 2,
                                   child: _buildButton(buttonId, c),
                                 ),
                               )

@@ -946,6 +946,11 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       // Clear form immediately for fast UX
       clearForm();
 
+      // Focus callsign field for next QSO (delayed to ensure UI is ready)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        callsignFocus.requestFocus();
+      });
+
       // Update counter after QSO is saved
       if (useCounter.value) {
         _updateNextCounter();
@@ -1438,12 +1443,32 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     super.onClose();
   }
 
+  // ========== Validation ==========
+
+  /// Callsign regex: at least one letter, one digit, and ends with a letter
+  static final _callsignRegex = RegExp(
+    r'^[A-Z0-9]{1,3}[0-9][A-Z0-9]*[A-Z]$',
+    caseSensitive: false,
+  );
+
+  /// Check if the current callsign is valid
+  bool get isCallsignValid =>
+      _callsignRegex.hasMatch(callsignController.text.trim());
+
   // ========== CW Bluetooth Send Functions ==========
 
   /// Check if CW buttons should be visible (CW mode + Bluetooth connected)
   bool get showCwButtons {
     final btController = Get.find<BluetoothController>();
     return selectedMode.value == 'CW' && btController.isConnected.value;
+  }
+
+  /// Save QSO and send TU via CW
+  Future<void> saveAndSendTu() async {
+    if (!isCallsignValid || !showCwButtons) return;
+    await submitQso();
+    final btController = Get.find<BluetoothController>();
+    btController.sendMorseString('TU');
   }
 
   /// Build the CW message string based on current form values
@@ -1548,12 +1573,14 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   /// Send DX callsign or "?" via Bluetooth (CALL*? button)
   void sendHisCall() {
     final btController = Get.find<BluetoothController>();
-    if (callsignController.text.isNotEmpty) {
-      btController.sendMorseString(
-        callsignController.text.trim().toUpperCase(),
-      );
-    } else {
+    final callsign = callsignController.text.trim().toUpperCase();
+    if (callsign.isEmpty) {
       btController.sendMorseString('?');
+    } else if (!isCallsignValid) {
+      // Invalid callsign - send with ?
+      btController.sendMorseString('$callsign?');
+    } else {
+      btController.sendMorseString(callsign);
     }
     callsignFocus.requestFocus();
   }

@@ -22,6 +22,7 @@ class _ExternalKeyboardScreenState extends State<ExternalKeyboardScreen> {
     {'id': 'rpt', 'name': 'RPT#'},
     {'id': 'call', 'name': 'CALL'},
     {'id': 'send', 'name': 'SEND'},
+    {'id': 'savetu', 'name': 'SAVE + TU'},
   ];
 
   // Current mappings (button id -> key description)
