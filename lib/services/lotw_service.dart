@@ -112,7 +112,9 @@ class LotwService {
       activationReference: activationReference,
     );
 
-    // print(tqsl);
+    print('=== TQSL Content ===');
+    print(tqsl);
+    print('=== End TQSL ===');
 
     // GZip compress
     final tqslBytes = utf8.encode(tqsl);
@@ -153,6 +155,10 @@ class LotwService {
 
     // Check response - LoTW processes signed files even if web login fails
     // The signature in the file is the real authentication
+    print('=== LoTW Response ===');
+    print('Status: ${response.statusCode}');
+    print('Body: ${response.data}');
+    print('=== End Response ===');
     final responseStr = response.data.toString().toLowerCase();
 
     // Check for explicit QSO rejection errors

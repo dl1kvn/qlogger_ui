@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../controllers/bluetooth_controller.dart';
+import '../services/ble/ble_device.dart';
 
 class BluetoothDialog extends StatelessWidget {
   final BluetoothController bluetoothController =
@@ -82,22 +82,17 @@ class BluetoothDialog extends StatelessWidget {
                 return ListView.builder(
                   itemCount: results.length,
                   itemBuilder: (context, index) {
-                    ScanResult result = results[index];
-                    final device = result.device;
-                    final name = device.platformName.isNotEmpty
-                        ? device.platformName
-                        : 'Unknown';
+                    BleDevice device = results[index];
 
                     return ListTile(
                       title: Text(
-                        name,
+                        device.displayName,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      subtitle: Text(device.remoteId.str),
-                      trailing: Text("${result.rssi} dBm"),
+                      subtitle: Text(device.id),
                       onTap: () async {
                         bluetoothController.stopScan();
-                        await bluetoothController.connect(result);
+                        await bluetoothController.connect(device);
                         Get.back();
                       },
                     );

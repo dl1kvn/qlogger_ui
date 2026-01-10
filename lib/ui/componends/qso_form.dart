@@ -9,6 +9,7 @@ import '../../controllers/database_controller.dart';
 import '../../controllers/bluetooth_controller.dart';
 import '../../controllers/theme_controller.dart';
 import '../../screens/my_callsigns_screen.dart';
+import '../../screens/callsign_edit_screen.dart';
 import 'dart:math' show Random;
 import '../../screens/simulation_setup_screen.dart'
     show
@@ -266,8 +267,9 @@ class QsoForm extends StatelessWidget {
     String label,
     bool active,
     RxBool flashTrigger,
-    VoidCallback onTap,
-  ) {
+    VoidCallback onTap, {
+    bool enabled = true,
+  }) {
     return Obx(() {
       final isFlashing = flashTrigger.value;
       return TweenAnimationBuilder<double>(
@@ -278,19 +280,23 @@ class QsoForm extends StatelessWidget {
           return Transform.scale(
             scale: scale,
             child: GestureDetector(
-              onTap: onTap,
+              onTap: enabled
+                  ? onTap
+                  : () => _showNoDataDialog(context, label),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: active ? Colors.green : Colors.red,
+                  color: enabled
+                      ? (active ? Colors.green : Colors.red)
+                      : Colors.grey.shade400,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: enabled ? Colors.white : Colors.white70,
                   ),
                 ),
               ),
@@ -299,6 +305,40 @@ class QsoForm extends StatelessWidget {
         },
       );
     });
+  }
+
+  void _showNoDataDialog(BuildContext context, String serviceName) {
+    final c = Get.find<QsoFormController>();
+    final dbController = Get.find<DatabaseController>();
+
+    Get.dialog(
+      AlertDialog(
+        title: Text('No data for $serviceName'),
+        content: const Text('Please configure the service credentials in callsign settings.'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Get.back();
+              // Find current callsign and open edit screen
+              final callsign = c.selectedMyCallsign.value;
+              if (callsign != null) {
+                final cs = dbController.callsignList.firstWhereOrNull(
+                  (c) => c.callsign == callsign,
+                );
+                if (cs != null) {
+                  Get.to(() => CallsignEditScreen(callsign: cs));
+                }
+              }
+            },
+            child: const Text('Edit Callsign'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildButton(String buttonId, QsoFormController c) {
@@ -1091,8 +1131,9 @@ class QsoForm extends StatelessWidget {
               key: c.formKey,
               child: Column(
                 children: [
-                  // Top row: Bluetooth, My Callsign, Status
+                  // Top row: Bluetooth, My Callsign, Status (hidden in contest mode)
                   Obx(() {
+                    if (c.contestMode.value) return const SizedBox.shrink();
                     final isDark = Get.find<ThemeController>().isDarkMode.value;
                     return Container(
                       color: isDark ? Colors.black : AppColors.surfaceLight,
@@ -1407,6 +1448,7 @@ class QsoForm extends StatelessWidget {
                             c.useClublog,
                             c.clublogFlash,
                             c.toggleClublog,
+                            enabled: c.hasClublogCredentials,
                           ),
                           const SizedBox(width: 4),
                           _buildServiceToggle(
@@ -1414,6 +1456,7 @@ class QsoForm extends StatelessWidget {
                             c.useEqsl,
                             c.eqslFlash,
                             c.toggleEqsl,
+                            enabled: c.hasEqslCredentials,
                           ),
                           const SizedBox(width: 4),
                           _buildServiceToggle(
@@ -1421,6 +1464,7 @@ class QsoForm extends StatelessWidget {
                             c.useLotw,
                             c.lotwFlash,
                             c.toggleLotw,
+                            enabled: c.hasLotwKey,
                           ),
                           const Spacer(),
                           Container(
@@ -1655,9 +1699,9 @@ class QsoForm extends StatelessWidget {
                       ValueListenableBuilder<TextEditingValue>(
                         valueListenable: c.callsignController,
                         builder: (context, value, child) {
-                          // Callsign regex: at least one letter, one digit, and one letter
+                          // Callsign regex: supports optional prefix (G/) and suffix (/P, /QRP)
                           final callsignRegex = RegExp(
-                            r'^[A-Z0-9]{1,3}[0-9][A-Z0-9]*[A-Z]$',
+                            r'^(?:[A-Z0-9]{1,4}/)?[A-Z0-9]{1,3}[0-9][A-Z0-9]*[A-Z](?:/[A-Z0-9]+)?$',
                             caseSensitive: false,
                           );
                           final isValidCallsign = callsignRegex.hasMatch(
@@ -1892,7 +1936,7 @@ class QsoForm extends StatelessWidget {
                               ),
                               DropdownMenuItem(
                                 value: 'jump',
-                                child: Text('jump'),
+                                child: Text('char->'),
                               ),
                             ],
                             onChanged: (value) {
@@ -2121,10 +2165,41 @@ class QsoForm extends StatelessWidget {
                       return true;
                     }
 
+                    // Collect all visible buttons across all rows
+                    final allVisibleButtons = rows
+                        .expand((row) => row)
+                        .where((b) => isButtonVisible(b))
+                        .toList();
+
+                    // If only CLR and SAVE are visible, show them in one row
+                    final onlyClrAndSave = allVisibleButtons.length <= 2 &&
+                        allVisibleButtons.every(
+                          (b) => b == 'CLR' || b == 'SAVE',
+                        );
+
+                    if (onlyClrAndSave && allVisibleButtons.isNotEmpty) {
+                      // Sort to ensure consistent order: CLR first, then SAVE
+                      final sortedButtons = <String>[];
+                      if (allVisibleButtons.contains('CLR')) {
+                        sortedButtons.add('CLR');
+                      }
+                      if (allVisibleButtons.contains('SAVE')) {
+                        sortedButtons.add('SAVE');
+                      }
+                      return Row(
+                        children: sortedButtons
+                            .map(
+                              (buttonId) => Expanded(
+                                flex: buttonId == 'CLR' ? 1 : 2,
+                                child: _buildButton(buttonId, c),
+                              ),
+                            )
+                            .toList(),
+                      );
+                    }
+
                     return Column(
-                      children: rows.asMap().entries.map((entry) {
-                        final rowIndex = entry.key;
-                        final row = entry.value;
+                      children: rows.map((row) {
                         if (row.isEmpty) return const SizedBox.shrink();
 
                         // Check if any button in this row is visible

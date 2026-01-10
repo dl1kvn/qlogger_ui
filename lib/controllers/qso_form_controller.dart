@@ -269,7 +269,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     } catch (_) {}
   }
 
-  /// Check if LoTW has P12 certificate configured
+  /// Check if LoTW has login, password and P12 certificate configured
   bool get hasLotwKey {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return false;
@@ -277,8 +277,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       final cs = _dbController.callsignList.firstWhere(
         (c) => c.callsign == callsign,
       );
-      // Only check if certificate exists - password can be empty
-      return cs.lotwcert.isNotEmpty;
+      return cs.lotwlogin.isNotEmpty &&
+          cs.lotwpw.isNotEmpty &&
+          cs.lotwcert.isNotEmpty;
     } catch (_) {
       return false;
     }
@@ -298,7 +299,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  /// Check if eQSL has password configured
+  /// Check if eQSL has user and password configured
   bool get hasEqslCredentials {
     final callsign = selectedMyCallsign.value;
     if (callsign == null) return false;
@@ -306,7 +307,7 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
       final cs = _dbController.callsignList.firstWhere(
         (c) => c.callsign == callsign,
       );
-      return cs.eqslpassword.isNotEmpty;
+      return cs.eqsluser.isNotEmpty && cs.eqslpassword.isNotEmpty;
     } catch (_) {
       return false;
     }
@@ -1446,8 +1447,9 @@ class QsoFormController extends GetxController with WidgetsBindingObserver {
   // ========== Validation ==========
 
   /// Callsign regex: at least one letter, one digit, and ends with a letter
+  /// Supports optional prefix (e.g., G/DL1KVN) and suffix (e.g., DL1KVN/P, DL1KVN/QRP)
   static final _callsignRegex = RegExp(
-    r'^[A-Z0-9]{1,3}[0-9][A-Z0-9]*[A-Z]$',
+    r'^(?:[A-Z0-9]{1,4}/)?[A-Z0-9]{1,3}[0-9][A-Z0-9]*[A-Z](?:/[A-Z0-9]+)?$',
     caseSensitive: false,
   );
 

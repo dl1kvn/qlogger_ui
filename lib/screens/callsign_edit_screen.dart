@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../controllers/database_controller.dart';
 import '../data/models/callsign_model.dart';
@@ -51,6 +52,28 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
 
   bool get isEditing => widget.callsign != null;
 
+  bool get _clublogFieldsFilled =>
+      _clublogemailController.text.isNotEmpty &&
+      _clublogpwController.text.isNotEmpty;
+
+  bool get _eqslFieldsFilled =>
+      _eqsluserController.text.isNotEmpty &&
+      _eqslpasswordController.text.isNotEmpty;
+
+  bool get _lotwFieldsFilled =>
+      _lotwloginController.text.isNotEmpty &&
+      _lotwpwController.text.isNotEmpty &&
+      _lotwcertController.text.isNotEmpty;
+
+  void _onServiceFieldChanged() {
+    setState(() {
+      // Turn off switches if fields become empty
+      if (!_clublogFieldsFilled) _useClublog = false;
+      if (!_eqslFieldsFilled) _useEqsl = false;
+      if (!_lotwFieldsFilled) _useLotw = false;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -97,10 +120,28 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
           ['SEND', 'CLR', 'SAVE'],
           [],
         ];
+
+    // Add listeners to update switch states when fields change
+    _clublogemailController.addListener(_onServiceFieldChanged);
+    _clublogpwController.addListener(_onServiceFieldChanged);
+    _eqsluserController.addListener(_onServiceFieldChanged);
+    _eqslpasswordController.addListener(_onServiceFieldChanged);
+    _lotwloginController.addListener(_onServiceFieldChanged);
+    _lotwpwController.addListener(_onServiceFieldChanged);
+    _lotwcertController.addListener(_onServiceFieldChanged);
   }
 
   @override
   void dispose() {
+    // Remove listeners before disposing
+    _clublogemailController.removeListener(_onServiceFieldChanged);
+    _clublogpwController.removeListener(_onServiceFieldChanged);
+    _eqsluserController.removeListener(_onServiceFieldChanged);
+    _eqslpasswordController.removeListener(_onServiceFieldChanged);
+    _lotwloginController.removeListener(_onServiceFieldChanged);
+    _lotwpwController.removeListener(_onServiceFieldChanged);
+    _lotwcertController.removeListener(_onServiceFieldChanged);
+
     _callsignController.dispose();
     _clublogemailController.dispose();
     _clublogpwController.dispose();
@@ -119,6 +160,28 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Validate service fields if enabled
+    final errors = <String>[];
+    if (_useClublog && !_clublogFieldsFilled) {
+      errors.add('Club Log requires email and password');
+    }
+    if (_useEqsl && !_eqslFieldsFilled) {
+      errors.add('eQSL requires user and password');
+    }
+    if (_useLotw && !_lotwFieldsFilled) {
+      errors.add('LoTW requires login, password and certificate');
+    }
+
+    if (errors.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errors.join('\n')),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
+    }
 
     final callsign = CallsignModel(
       id: widget.callsign?.id,
@@ -232,6 +295,13 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
                 border: OutlineInputBorder(),
               ),
               textCapitalization: TextCapitalization.characters,
+              inputFormatters: [
+                TextInputFormatter.withFunction(
+                  (oldValue, newValue) => newValue.copyWith(
+                    text: newValue.text.toUpperCase(),
+                  ),
+                ),
+              ],
               validator: (v) => v?.isEmpty == true ? 'Required' : null,
             ),
             const SizedBox(height: 16),
@@ -265,10 +335,17 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               controller: _cwCqTextController,
               decoration: const InputDecoration(
                 labelText: 'Custom CQ Button Text',
-                hintText: 'cq, test...',
+                hintText: 'CQ TEST...',
                 border: OutlineInputBorder(),
               ),
               textCapitalization: TextCapitalization.characters,
+              inputFormatters: [
+                TextInputFormatter.withFunction(
+                  (oldValue, newValue) => newValue.copyWith(
+                    text: newValue.text.toUpperCase(),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -279,6 +356,13 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
                 border: OutlineInputBorder(),
               ),
               textCapitalization: TextCapitalization.characters,
+              inputFormatters: [
+                TextInputFormatter.withFunction(
+                  (oldValue, newValue) => newValue.copyWith(
+                    text: newValue.text.toUpperCase(),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             Text(
@@ -421,6 +505,8 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               'Club Log',
               _useClublog,
               (v) => setState(() => _useClublog = v),
+              enabled: _clublogFieldsFilled,
+              disabledHint: 'Fill email and password to enable',
             ),
             const SizedBox(height: 8),
             TextFormField(
@@ -460,6 +546,8 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               'eQSL',
               _useEqsl,
               (v) => setState(() => _useEqsl = v),
+              enabled: _eqslFieldsFilled,
+              disabledHint: 'Fill user and password to enable',
             ),
             const SizedBox(height: 8),
             TextFormField(
@@ -498,6 +586,8 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               'LoTW',
               _useLotw,
               (v) => setState(() => _useLotw = v),
+              enabled: _lotwFieldsFilled,
+              disabledHint: 'Fill login, password and load certificate to enable',
             ),
             const SizedBox(height: 8),
             TextFormField(
@@ -553,6 +643,13 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
               },
               icon: const Icon(Icons.key),
               label: const Text('Load P12 File'),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Export P12 from TQSL with a password (required for signing)',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
             const SizedBox(height: 16),
           ],
@@ -621,13 +718,31 @@ class _CallsignEditScreenState extends State<CallsignEditScreen> {
   Widget _buildSectionHeader(
     String title,
     bool value,
-    ValueChanged<bool> onChanged,
-  ) {
+    ValueChanged<bool> onChanged, {
+    bool enabled = true,
+    String? disabledHint,
+  }) {
     return Row(
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleMedium),
-        const Spacer(),
-        Switch(value: value, onChanged: onChanged),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              if (!enabled && disabledHint != null)
+                Text(
+                  disabledHint,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Switch(
+          value: value,
+          onChanged: enabled ? onChanged : null,
+        ),
       ],
     );
   }
