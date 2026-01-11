@@ -18,6 +18,9 @@ abstract class BleService {
   /// Whether currently connected
   bool get isConnected;
 
+  /// Check if Bluetooth adapter is enabled
+  Future<bool> isBluetoothEnabled();
+
   /// Initialize the BLE service
   Future<void> initialize();
 

@@ -39,6 +39,17 @@ class BleServiceWindows implements BleService {
   bool get isConnected => _isConnected;
 
   @override
+  Future<bool> isBluetoothEnabled() async {
+    try {
+      final state = await win_ble.WinBle.bleState.first;
+      return state == win_ble.BleState.On;
+    } catch (e) {
+      // If we can't determine state, assume it's available
+      return true;
+    }
+  }
+
+  @override
   Future<void> initialize() async {
     await win_ble.WinBle.initialize(
       serverPath: await WinServer.path(),

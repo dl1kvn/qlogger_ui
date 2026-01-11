@@ -26,17 +26,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   FlutterWindow window(project);
 
-  // Calculate window size: 1:1.8 aspect ratio, max width 800px, max height 80% screen
+  // Calculate window size: 1:1.7 aspect ratio, max height 80% screen
   int screenHeight = GetSystemMetrics(SM_CYSCREEN);
   int maxHeight = static_cast<int>(screenHeight * 0.8);
-  int width = 800;
-  int height = static_cast<int>(width * 1.8);  // 1:1.8 aspect ratio
-
-  // If calculated height exceeds 80% of screen, scale down
-  if (height > maxHeight) {
-    height = maxHeight;
-    width = static_cast<int>(height / 1.8);
-  }
+  int height = maxHeight;  // Start with max allowed height
+  int width = static_cast<int>(height / 1.7);  // 1:1.7 aspect ratio
 
   // Center the window horizontally
   int screenWidth = GetSystemMetrics(SM_CXSCREEN);

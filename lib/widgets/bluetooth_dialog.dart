@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:app_settings/app_settings.dart';
 import '../controllers/bluetooth_controller.dart';
 import '../services/ble/ble_device.dart';
 
@@ -8,6 +10,41 @@ class BluetoothDialog extends StatelessWidget {
       Get.find<BluetoothController>();
 
   BluetoothDialog({super.key});
+
+  Future<void> _handleStartScan() async {
+    final isEnabled = await bluetoothController.isBluetoothEnabled();
+    if (!isEnabled) {
+      _showBluetoothDisabledDialog();
+    } else {
+      bluetoothController.startScan();
+    }
+  }
+
+  void _showBluetoothDisabledDialog() {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Bluetooth is Off'),
+        content: const Text(
+          'Please enable Bluetooth to scan for devices.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Get.back();
+              if (Platform.isAndroid || Platform.isIOS) {
+                AppSettings.openAppSettings(type: AppSettingsType.bluetooth);
+              }
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +160,7 @@ class BluetoothDialog extends StatelessWidget {
                     ),
                     onPressed: () => bluetoothController.isScanning.value
                         ? bluetoothController.stopScan()
-                        : bluetoothController.startScan(),
+                        : _handleStartScan(),
                   ),
                 ),
 

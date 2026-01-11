@@ -33,6 +33,12 @@ class BleServiceMobile implements BleService {
   bool get isConnected => _isConnected;
 
   @override
+  Future<bool> isBluetoothEnabled() async {
+    final state = await FlutterBluePlus.adapterState.first;
+    return state == BluetoothAdapterState.on;
+  }
+
+  @override
   Future<void> initialize() async {
     FlutterBluePlus.scanResults.listen((results) {
       final devices = results.map((r) => BleDevice(

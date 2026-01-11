@@ -24,6 +24,32 @@ class _ExportSettingEditScreenState extends State<ExportSettingEditScreen> {
   // Fields that can have custom ADIF names
   static const _aliasableFields = ['qsonr', 'received', 'xtra'];
 
+  // User-friendly display names for fields
+  static const _fieldDisplayNames = {
+    'callsign': 'Callsign (CALL)',
+    'qsodate': 'Date (QSO_DATE)',
+    'qsotime': 'Time (TIME_ON)',
+    'band': 'Band (BAND/FREQ)',
+    'mymode': 'Mode (MODE)',
+    'rstout': 'RST Sent (RST_SENT)',
+    'rstin': 'RST Rcvd (RST_RCVD)',
+    'received': 'Received Info (SRX_STRING)',
+    'xtra': 'Comment (COMMENT)',
+    'qsonr': 'QSO Nr (STX)',
+    'gridsquare': 'Grid (GRIDSQUARE)',
+    'distance': 'Distance (DISTANCE)',
+    'myiota': 'My IOTA (MY_IOTA)',
+    'mysota': 'My SOTA (MY_SOTA_REF)',
+    'mypota': 'My POTA (MY_POTA_REF)',
+    'clublogEqslCall': 'My Station Callsign (STATION_CALLSIGN)',
+    'clublogstatus': 'Status (APP_QLOGGER_STATUS)',
+    'activationId': 'Activation Reference',
+  };
+
+  String _getFieldDisplayName(String field) {
+    return _fieldDisplayNames[field] ?? field;
+  }
+
   bool get isEditing => widget.setting != null;
 
   @override
@@ -243,7 +269,7 @@ class _ExportSettingEditScreenState extends State<ExportSettingEditScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(field),
+                              Text(_getFieldDisplayName(field)),
                               if (isAliasable)
                                 SizedBox(
                                   height: 28,
@@ -301,7 +327,7 @@ class _ExportSettingEditScreenState extends State<ExportSettingEditScreen> {
                         onChanged: (_) => _toggleField(field),
                       ),
                       title: Text(
-                        field,
+                        _getFieldDisplayName(field),
                         style: const TextStyle(color: Colors.grey),
                       ),
                     );

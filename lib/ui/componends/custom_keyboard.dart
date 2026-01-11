@@ -57,67 +57,8 @@ class CustomKeyboard extends StatelessWidget {
       const row3 = ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', '/'];
       final row4 = [
         isGerman ? 'Y' : 'Z',
-        'X', 'C', 'V', 'B', 'N', 'M', '-', '?', '⌫',
+        'X', 'C', 'V', 'B', 'N', 'M', '-', '?', '⚙',
       ];
-
-      Widget buildKey(String key, {int flex = 1}) {
-        final isBackspace = key == '⌫';
-        final isSpace = key == ' ';
-        final isSpecial = ['/', '-', '?'].contains(key);
-        final isNumber = RegExp(r'^[0-9]$').hasMatch(key);
-        final isDisabled = isRstField && !isNumber && !isBackspace;
-
-        return Expanded(
-          flex: flex,
-          child: Padding(
-            padding: const EdgeInsets.all(2),
-            child: Material(
-              color: isDisabled
-                  ? disabledColor
-                  : isBackspace
-                      ? Colors.red.shade400
-                      : isSpace
-                          ? spaceColor
-                          : isSpecial
-                              ? specialColor
-                              : keyColor,
-              borderRadius: BorderRadius.circular(2),
-              child: InkWell(
-                onTap: isDisabled
-                    ? null
-                    : () {
-                        if (isBackspace) {
-                          c.deleteCharacter();
-                        } else {
-                          c.insertCharacter(key);
-                        }
-                      },
-                borderRadius: BorderRadius.circular(2),
-                child: Container(
-                  height: keyHeight,
-                  alignment: Alignment.center,
-                  child: Text(
-                    isSpace ? 'SPACE' : key,
-                    style: TextStyle(
-                      color: isDisabled
-                          ? disabledTextColor
-                          : isBackspace
-                              ? Colors.white
-                              : textColor,
-                      fontSize: isBackspace ? 18 : isSpace ? 12 : 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }
-
-      Widget buildRow(List<String> keys) {
-        return Row(children: keys.map((k) => buildKey(k)).toList());
-      }
 
       void showSettings() {
         var tempHeight = keyHeight;
@@ -184,6 +125,73 @@ class CustomKeyboard extends StatelessWidget {
         );
       }
 
+      Widget buildKey(String key, {int flex = 1}) {
+        final isBackspace = key == '⌫';
+        final isSpace = key == ' ';
+        final isEsc = key == 'ESC';
+        final isSettings = key == '⚙';
+        final isSpecial = ['/', '-', '?'].contains(key);
+        final isNumber = RegExp(r'^[0-9]$').hasMatch(key);
+        final isDisabled = isRstField && !isNumber && !isBackspace && !isEsc;
+
+        return Expanded(
+          flex: flex,
+          child: Material(
+              color: isDisabled
+                  ? disabledColor
+                  : isBackspace || isEsc
+                      ? Colors.red.shade300
+                      : isSpace || isSettings
+                          ? spaceColor
+                          : isSpecial
+                              ? specialColor
+                              : keyColor,
+              borderRadius: BorderRadius.circular(2),
+              child: InkWell(
+                onTap: isDisabled
+                    ? null
+                    : () {
+                        if (isBackspace) {
+                          c.deleteCharacter();
+                        } else if (isSettings) {
+                          showSettings();
+                        } else if (isEsc) {
+                          c.clearForm();
+                        } else {
+                          c.insertCharacter(key);
+                        }
+                      },
+                borderRadius: BorderRadius.circular(2),
+                child: Container(
+                  height: keyHeight,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade400, width: 0.5),
+                  ),
+                  child: isSettings
+                      ? Icon(Icons.settings, color: textColor, size: 18)
+                      : Text(
+                          isSpace ? 'SPACE' : key,
+                          style: TextStyle(
+                            color: isDisabled
+                                ? disabledTextColor
+                                : isBackspace || isEsc
+                                    ? Colors.white
+                                    : textColor,
+                            fontSize: isBackspace ? 18 : isSpace || isEsc ? 12 : 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+        );
+      }
+
+      Widget buildRow(List<String> keys) {
+        return Row(children: keys.map((k) => buildKey(k)).toList());
+      }
+
       return Container(
         color: bgColor,
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
@@ -196,28 +204,9 @@ class CustomKeyboard extends StatelessWidget {
             buildRow(row4),
             Row(
               children: [
-                buildKey(' ', flex: 1),
-                Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: Material(
-                    color: spaceColor,
-                    borderRadius: BorderRadius.circular(2),
-                    child: InkWell(
-                      onTap: showSettings,
-                      borderRadius: BorderRadius.circular(2),
-                      child: Container(
-                        height: keyHeight,
-                        width: keyHeight,
-                        alignment: Alignment.center,
-                        child: Icon(
-                          Icons.settings,
-                          color: textColor,
-                          size: 18,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                buildKey('ESC'),
+                buildKey(' ', flex: 3),
+                buildKey('⌫'),
               ],
             ),
           ],

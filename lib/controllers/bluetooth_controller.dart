@@ -64,6 +64,15 @@ class BluetoothController extends GetxController {
     }
   }
 
+  Future<bool> isBluetoothEnabled() async {
+    try {
+      return await _bleService.isBluetoothEnabled();
+    } catch (e) {
+      print('Bluetooth state check error: $e');
+      return false;
+    }
+  }
+
   Future<void> startScan() async {
     try {
       // Request Bluetooth permissions (mobile only)

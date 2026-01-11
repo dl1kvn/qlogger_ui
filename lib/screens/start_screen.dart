@@ -7,6 +7,7 @@ import '../ui/componends/qso_form.dart';
 import '../ui/theme/tokens.dart';
 import '../widgets/bluetooth_dialog.dart';
 import 'simulation_setup_screen.dart';
+import 'callsign_edit_screen.dart';
 
 Widget qloggerSpeedWordmark({double fontSize = 24, Color? color}) {
   return Builder(
@@ -88,15 +89,55 @@ Widget _appBarIconButton({
   );
 }
 
-class StartScreen extends StatelessWidget {
+class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final c = Get.put(QsoFormController());
-    final btController = Get.find<BluetoothController>();
-    final themeController = Get.find<ThemeController>();
+  State<StartScreen> createState() => _StartScreenState();
+}
 
+class _StartScreenState extends State<StartScreen> {
+  late final QsoFormController c;
+  late final BluetoothController btController;
+  late final ThemeController themeController;
+
+  @override
+  void initState() {
+    super.initState();
+    c = Get.put(QsoFormController());
+    btController = Get.find<BluetoothController>();
+    themeController = Get.find<ThemeController>();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showCallsignPopupIfNeeded();
+    });
+  }
+
+  void _showCallsignPopupIfNeeded() {
+    if (c.myCallsigns.isEmpty) {
+      Get.dialog(
+        AlertDialog(
+          title: const Text('No Callsign Configured'),
+          content: const Text(
+            'You need to add your callsign to start logging QSOs.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () {
+                Get.back();
+                Get.to(() => const CallsignEditScreen());
+              },
+              child: const Text('Add Callsign'),
+            ),
+          ],
+        ),
+        barrierDismissible: false,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final iconRow = PreferredSize(
       preferredSize: const Size.fromHeight(32),
       child: Padding(

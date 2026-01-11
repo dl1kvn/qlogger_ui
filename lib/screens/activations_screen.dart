@@ -15,6 +15,7 @@ import 'activation_detail_screen.dart';
 import 'iota_references_screen.dart';
 import 'log_entry_screen.dart';
 import 'pota_references_screen.dart';
+import 'sota_references_screen.dart';
 
 /// Processes image in isolate - resizes to max 200px and encodes as PNG
 Future<Uint8List?> _processActivationImage(Uint8List bytes) async {
@@ -146,6 +147,22 @@ class ActivationsScreen extends StatelessWidget {
     if (type == 'pota') {
       final selectedRef = await Get.to<String>(
         () => const PotaReferencesScreen(selectMode: true),
+      );
+      if (selectedRef != null && selectedRef.isNotEmpty) {
+        final activation = ActivationModel(type: type, reference: selectedRef);
+        final success = await dbController.addActivation(activation);
+        if (success) {
+          final newActivation = dbController.activationList.last;
+          Get.to(() => ActivationEditScreen(activation: newActivation));
+        }
+      }
+      return;
+    }
+
+    // For SOTA, navigate to SOTA ref picker
+    if (type == 'sota') {
+      final selectedRef = await Get.to<String>(
+        () => const SotaReferencesScreen(selectMode: true),
       );
       if (selectedRef != null && selectedRef.isNotEmpty) {
         final activation = ActivationModel(type: type, reference: selectedRef);
@@ -322,18 +339,24 @@ class ActivationsScreen extends StatelessWidget {
           // Reference buttons row
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Row(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 FilledButton.icon(
                   onPressed: () => Get.to(() => const IotaReferencesScreen()),
                   icon: const Icon(Icons.beach_access),
-                  label: const Text('IOTA REF'),
+                  label: const Text('IOTA'),
                 ),
-                const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: () => Get.to(() => const PotaReferencesScreen()),
                   icon: const Icon(Icons.park),
-                  label: const Text('POTA REF'),
+                  label: const Text('POTA'),
+                ),
+                FilledButton.icon(
+                  onPressed: () => Get.to(() => const SotaReferencesScreen()),
+                  icon: const Icon(Icons.terrain),
+                  label: const Text('SOTA'),
                 ),
               ],
             ),

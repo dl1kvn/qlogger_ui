@@ -9,13 +9,14 @@ import '../models/pota_park_model.dart';
 import '../models/export_setting_model.dart';
 import '../models/satellite_model.dart';
 import '../models/activation_image_model.dart';
+import '../models/sota_summit_model.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
   static const String _dbName = 'qlogger.db';
-  static const int _dbVersion = 33;
+  static const int _dbVersion = 34;
 
   static const String qsoTable = 'qsoTable';
   static const String allsignTable = 'allsignTable';
@@ -26,6 +27,7 @@ class DatabaseHelper {
   static const String exportSettingTable = 'exportSettingTable';
   static const String satelliteTable = 'satelliteTable';
   static const String activationImageTable = 'activationImageTable';
+  static const String sotaSummitTable = 'sotaSummitTable';
 
   DatabaseHelper._internal();
 
@@ -197,6 +199,29 @@ class DatabaseHelper {
         image_path TEXT NOT NULL,
         sort_order INTEGER DEFAULT 0,
         FOREIGN KEY (activation_id) REFERENCES $activationTable (id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE $sotaSummitTable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        summit_code TEXT UNIQUE,
+        association_name TEXT,
+        region_name TEXT,
+        summit_name TEXT,
+        alt_m INTEGER,
+        alt_ft INTEGER,
+        grid_ref1 TEXT,
+        grid_ref2 TEXT,
+        longitude REAL,
+        latitude REAL,
+        points INTEGER,
+        bonus_points INTEGER DEFAULT 0,
+        valid_from TEXT,
+        valid_to TEXT,
+        activation_count INTEGER DEFAULT 0,
+        activation_date TEXT,
+        activation_call TEXT
       )
     ''');
   }
@@ -372,6 +397,30 @@ class DatabaseHelper {
     }
     if (oldVersion < 33) {
       await db.execute("ALTER TABLE $activationTable ADD COLUMN show_in_dropdown INTEGER DEFAULT 1");
+    }
+    if (oldVersion < 34) {
+      await db.execute('''
+        CREATE TABLE $sotaSummitTable (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          summit_code TEXT UNIQUE,
+          association_name TEXT,
+          region_name TEXT,
+          summit_name TEXT,
+          alt_m INTEGER,
+          alt_ft INTEGER,
+          grid_ref1 TEXT,
+          grid_ref2 TEXT,
+          longitude REAL,
+          latitude REAL,
+          points INTEGER,
+          bonus_points INTEGER DEFAULT 0,
+          valid_from TEXT,
+          valid_to TEXT,
+          activation_count INTEGER DEFAULT 0,
+          activation_date TEXT,
+          activation_call TEXT
+        )
+      ''');
     }
   }
 
@@ -781,6 +830,100 @@ class DatabaseHelper {
   Future<int> getPotaParkCount() async {
     final db = await database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM $potaParkTable');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  // ==================== SOTA SUMMIT CRUD ====================
+
+  Future<int> insertSotaSummit(SotaSummitModel summit) async {
+    final db = await database;
+    return await db.insert(
+      sotaSummitTable,
+      summit.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> insertSotaSummits(List<SotaSummitModel> summits) async {
+    final db = await database;
+    final batch = db.batch();
+    for (final summit in summits) {
+      batch.insert(
+        sotaSummitTable,
+        summit.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<List<SotaSummitModel>> getAllSotaSummits() async {
+    final db = await database;
+    final maps = await db.query(sotaSummitTable, orderBy: 'summit_code');
+    return maps.map((map) => SotaSummitModel.fromMap(map)).toList();
+  }
+
+  Future<SotaSummitModel?> getSotaSummitByCode(String code) async {
+    final db = await database;
+    final maps = await db.query(
+      sotaSummitTable,
+      where: 'summit_code = ?',
+      whereArgs: [code],
+    );
+    if (maps.isNotEmpty) {
+      return SotaSummitModel.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  Future<List<SotaSummitModel>> searchSotaSummits(String query) async {
+    final db = await database;
+    final maps = await db.query(
+      sotaSummitTable,
+      where: 'summit_code LIKE ? OR summit_name LIKE ? OR association_name LIKE ? OR region_name LIKE ?',
+      whereArgs: ['%$query%', '%$query%', '%$query%', '%$query%'],
+      orderBy: 'summit_code',
+      limit: 100,
+    );
+    return maps.map((map) => SotaSummitModel.fromMap(map)).toList();
+  }
+
+  Future<List<String>> getSotaAssociations() async {
+    final db = await database;
+    final maps = await db.rawQuery(
+      'SELECT DISTINCT association_name FROM $sotaSummitTable ORDER BY association_name',
+    );
+    return maps.map((map) => map['association_name'] as String).toList();
+  }
+
+  Future<List<String>> getSotaRegions(String association) async {
+    final db = await database;
+    final maps = await db.rawQuery(
+      'SELECT DISTINCT region_name FROM $sotaSummitTable WHERE association_name = ? ORDER BY region_name',
+      [association],
+    );
+    return maps.map((map) => map['region_name'] as String).toList();
+  }
+
+  Future<List<SotaSummitModel>> getSotaSummitsByRegion(String association, String region) async {
+    final db = await database;
+    final maps = await db.query(
+      sotaSummitTable,
+      where: 'association_name = ? AND region_name = ?',
+      whereArgs: [association, region],
+      orderBy: 'summit_code',
+    );
+    return maps.map((map) => SotaSummitModel.fromMap(map)).toList();
+  }
+
+  Future<int> deleteAllSotaSummits() async {
+    final db = await database;
+    return await db.delete(sotaSummitTable);
+  }
+
+  Future<int> getSotaSummitCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM $sotaSummitTable');
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
